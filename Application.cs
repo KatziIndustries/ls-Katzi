@@ -152,6 +152,7 @@ public class App : Application
                     {
                         UpdatePath(_systemEntries[0] + Path.DirectorySeparatorChar);
                         RefreshSystemEntries();
+                        ClampSelectedEntry();
                         needsRedraw = true;
                     }
                 }
@@ -162,6 +163,7 @@ public class App : Application
                 {
                     UpdatePath(_systemEntries[_selectedEntry] + Path.DirectorySeparatorChar);
                     RefreshSystemEntries();
+                    ClampSelectedEntry();
                     needsRedraw = true;
                 }
             }
@@ -174,10 +176,7 @@ public class App : Application
                 string parentDir = GetParentDirectory();
                 UpdatePath(parentDir + (parentDir == "/" ? "" : Path.DirectorySeparatorChar));
                 RefreshSystemEntries();
-
-                if (_systemEntries.Length > 0) _selectedEntry = 0;
-                else _selectedEntry = -1;
-
+                ClampSelectedEntry();
                 needsRedraw = true;
             }
         }
@@ -310,6 +309,12 @@ public class App : Application
         string dirName = Path.GetDirectoryName(_currentPath) ?? "/";
         string parentDirName = (Directory.GetParent(dirName) ?? new DirectoryInfo("/")).FullName;
         return parentDirName;
+    }
+
+    private void ClampSelectedEntry()
+    {
+        if (_systemEntries.Length > 0) _selectedEntry = 0;
+        else _selectedEntry = -1;
     }
 
     public override void End() 
