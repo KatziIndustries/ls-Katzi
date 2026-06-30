@@ -1,5 +1,5 @@
+using System.Net.Sockets;
 using System.Numerics;
-using System.Reflection.Metadata;
 using SDL3;
 using Smash;
 using Smash.Graphics;
@@ -9,12 +9,12 @@ using Color = System.Drawing.Color;
 public class App : Application 
 {
     public static readonly Color BackgroundColor = Color.FromArgb(25, 25, 25);
-    public static readonly Color PathColor = Color.FromArgb(28, 28, 28);
+    public Color PathColor => _selectedEntry == -1 ? Color.FromArgb(50, 50, 50) : Color.FromArgb(28, 28, 28);
 
     public const string FONT_NAME = "Rubik-Regular";
-    public const int POINT_SIZE = 20;
+    public const int POINT_SIZE = 25;
     
-    private const int ENTRY_SPACING = 30;
+    private const int ENTRY_SPACING = 45;
     private const int PADDING = 20;
 
     private const int SCROLL_SPEED = 30;
@@ -39,6 +39,8 @@ public class App : Application
 
     private bool _pathPermissionDenied = false;
 
+    private int _selectedEntry = -1;
+
     public App() 
     {
         CreateWindowAndRenderer("ls-Katzi", 800, 600, out _window, out _renderer);
@@ -50,14 +52,12 @@ public class App : Application
         _renderer.SetVSyncEnabled(true);
 
         _currentPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + Path.DirectorySeparatorChar;
+        RefreshSystemEntries();
     }
 
     public override void Update(double deltaTime) 
     {
         needsRedraw = false;
-
-        if (RefreshSystemEntries())
-            needsRedraw = true;
 
         if (InputHandler.ScrollWheelDelta != 0)
         {
@@ -80,7 +80,7 @@ public class App : Application
             _lastWindowBounds = _window.Bounds;
         }
 
-        if (InputHandler.TextInput != null && InputHandler.TextInput != string.Empty)
+        if (InputHandler.TextInput != null && InputHandler.TextInput != string.Empty && _selectedEntry == -1)
         {
             UpdatePath(_currentPath + InputHandler.TextInput);
             needsRedraw = true;
@@ -114,6 +114,74 @@ public class App : Application
             }
         }
 
+        if ((InputHandler.IsKeyPressed(SDL.Keycode.Return) || InputHandler.IsKeyPressed(SDL.Keycode.Escape)) && _systemEntries.Length > 0 && _selectedEntry == -1)
+        {
+            _selectedEntry = 0;
+            needsRedraw = true;
+        }
+
+        if (InputHandler.IsKeyDown(SDL.Keycode.K))
+        {
+            if (InputHandler.IsKeyDown(SDL.Keycode.LCtrl))
+            {
+                _selectedEntry = -1;
+                needsRedraw = true;
+            }
+            else if (KeyRepetitionHandler.CanPress(SDL.Keycode.K) && _selectedEntry > 0)
+            {
+                KeyRepetitionHandler.Press(SDL.Keycode.K);
+                _selectedEntry--;
+                needsRedraw = true;
+            }
+        }
+
+        if (InputHandler.IsKeyDown(SDL.Keycode.J) && KeyRepetitionHandler.CanPress(SDL.Keycode.J) && _selectedEntry < _systemEntries.Length - 1)
+        {
+            KeyRepetitionHandler.Press(SDL.Keycode.J);
+            _selectedEntry++;
+            needsRedraw = true;
+        }
+
+        if (InputHandler.IsKeyPressed(SDL.Keycode.E))
+        {
+            if (InputHandler.IsKeyDown(SDL.Keycode.LCtrl) && _selectedEntry == -1)
+            {
+                if (_systemEntries.Length > 0)
+                {
+                    if (Directory.Exists(_systemEntries[0]))
+                    {
+                        UpdatePath(_systemEntries[0] + Path.DirectorySeparatorChar);
+                        RefreshSystemEntries();
+                        needsRedraw = true;
+                    }
+                }
+            }
+            else if (_selectedEntry != -1)
+            {
+                if (Directory.Exists(_systemEntries[_selectedEntry]))
+                {
+                    UpdatePath(_systemEntries[_selectedEntry] + Path.DirectorySeparatorChar);
+                    RefreshSystemEntries();
+                    needsRedraw = true;
+                }
+            }
+        }
+
+        if (InputHandler.IsKeyPressed(SDL.Keycode.B))
+        {
+            if ((InputHandler.IsKeyDown(SDL.Keycode.LCtrl) && _selectedEntry == -1) || _selectedEntry != -1)
+            {
+                string parentDir = GetParentDirectory();
+                UpdatePath(parentDir + (parentDir == "/" ? "" : Path.DirectorySeparatorChar));
+                RefreshSystemEntries();
+
+                if (_systemEntries.Length > 0) _selectedEntry = 0;
+                else _selectedEntry = -1;
+
+                needsRedraw = true;
+            }
+        }
+
         KeyRepetitionHandler.Update(deltaTime);
 
         if (needsRedraw)
@@ -131,10 +199,12 @@ public class App : Application
 
         Rectangle pathRectangle = new(0, 0, _window.Width, PATH_HEIGHT);
         _renderer.RenderFilledRectangle(pathRectangle, PathColor);
-        _renderer.RenderLine(pathRectangle.Position + new Vector2(0, pathRectangle.Height), pathRectangle.Position + pathRectangle.Bounds, Color.FromArgb(40, 40, 40));
+
+        int lineColor = PathColor.R + 20; 
+        _renderer.RenderLine(pathRectangle.Position + new Vector2(0, pathRectangle.Height), pathRectangle.Position + pathRectangle.Bounds, Color.FromArgb(lineColor, lineColor, lineColor));
 
         Vector2 pathTextPosition = new(PATH_HEIGHT / 2);
-        _renderer.RenderText(font, POINT_SIZE, _currentPath, pathTextPosition - new Vector2(0, font.MeasureString(_currentPath, POINT_SIZE).Y / 3), Color.White);
+        _renderer.RenderText(font, POINT_SIZE, _currentPath, pathTextPosition - new Vector2(0, font.MeasureString(_currentPath, POINT_SIZE).Y / 2), Color.White);
 
         Vector2 entriesStartPosition = new Vector2(PADDING) + new Vector2(0, _scroll + PATH_HEIGHT);
 
@@ -146,6 +216,16 @@ public class App : Application
             for (int i = 0; i < _systemEntries.Length; i++)
             {
                 Vector2 position = entriesStartPosition + new Vector2(0, i * ENTRY_SPACING);
+
+                if (i == _selectedEntry)
+                {
+                    Vector2 hitboxStartPos = position;
+                    hitboxStartPos.X = 0;
+                    hitboxStartPos.Y -= ENTRY_SPACING / 2 - font.MeasureString(_systemEntries[i], POINT_SIZE).Y / 2;
+
+                    Rectangle rect = new Rectangle(hitboxStartPos, _window.Width, ENTRY_SPACING);
+                    _renderer.RenderFilledRectangle(rect, Color.FromArgb(50, 50, 50));
+                }
 
                 bool isDirectory = Directory.Exists(_systemEntries[i]);
                 _renderer.RenderText(font, POINT_SIZE, Path.GetFileName(_systemEntries[i]), position, isDirectory ? Color.RoyalBlue : Color.White);
@@ -186,6 +266,7 @@ public class App : Application
             if (_systemEntries.Length > 0)
             {
                 _systemEntries = [];
+                _selectedEntry = -1;
                 return true;
             }
             else return false;
@@ -202,6 +283,7 @@ public class App : Application
         {
             _systemEntries = [];
             _pathPermissionDenied = true;
+            _selectedEntry = -1;
             return true; 
         }
 
@@ -221,6 +303,13 @@ public class App : Application
     private float GetMinScroll()
     {
         return -PADDING * 2 - (_systemEntries.Length * ENTRY_SPACING) + (_window.Height - PATH_HEIGHT);
+    }
+
+    private string GetParentDirectory()
+    {
+        string dirName = Path.GetDirectoryName(_currentPath) ?? "/";
+        string parentDirName = (Directory.GetParent(dirName) ?? new DirectoryInfo("/")).FullName;
+        return parentDirName;
     }
 
     public override void End() 

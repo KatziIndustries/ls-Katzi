@@ -4,7 +4,7 @@ using Smash.Input;
 public static class KeyRepetitionHandler
 {
     private const float FAST_REPEAT_COOLDOWN = 0.04f; 
-    private const float BASE_REPEAT_COOLDOWN = 0.25f;
+    private const float BASE_REPEAT_COOLDOWN = 0.15f;
     private const int REMOVE_COOLDOWN = -100000;
 
     private static Dictionary<SDL.Keycode, float> _cooldowns = new();
