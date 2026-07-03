@@ -1,4 +1,3 @@
-using System.Net.Sockets;
 using System.Numerics;
 using SDL3;
 using Smash;
@@ -41,6 +40,8 @@ public class App : Application
 
     private int _selectedEntry = -1;
 
+    private KeybindHandler _keybindHandler = new();
+
     public App() 
     {
         CreateWindowAndRenderer("ls-Katzi", 800, 600, out _window, out _renderer);
@@ -50,6 +51,18 @@ public class App : Application
         AssetManager.LoadFont(FONT_NAME + ".ttf");
 
         _renderer.SetVSyncEnabled(true);
+
+        _keybindHandler.RegisterKeybind(SDL.Keycode.E, Action.EnterDirectory, false, false);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.E, Action.ForceEnterDirectory, true, false);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.B, Action.EnterParentDirectory, false, false);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.B, Action.ForceEnterParentDirectory, true, false);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.Tab, Action.ForceEnterDirectory, false, false);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.Escape, Action.LeaveSearchBar, false, false);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.K, Action.EnterSearchBar, true, true);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.K, Action.MoveUp, false, true);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.J, Action.MoveDown, false, true);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.Backspace, Action.Backspace, false, true);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.Backspace, Action.CtrlBackspace, true, true);
 
         _currentPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + Path.DirectorySeparatorChar;
         RefreshSystemEntries();
@@ -88,97 +101,11 @@ public class App : Application
             RefreshSystemEntries();
         }
 
-        if (InputHandler.IsKeyDown(SDL.Keycode.Backspace) && _currentPath.Length > 0)
+        Action? action = _keybindHandler.Update();
+        if (action != null)
         {
-            if (KeyRepetitionHandler.CanPress(SDL.Keycode.Backspace))
-            {
-                KeyRepetitionHandler.Press(SDL.Keycode.Backspace);
-
-                if (InputHandler.IsKeyDown(SDL.Keycode.LCtrl))
-                {
-                    if (_currentPath[_currentPath.Length - 1] == Path.DirectorySeparatorChar)
-                    {
-                        UpdatePath(_currentPath = _currentPath.Remove(_currentPath.Length - 1, 1));
-                    }
-
-                    int index = _currentPath.LastIndexOf(Path.DirectorySeparatorChar);
-                    UpdatePath(_currentPath.Substring(0, index + 1));
-                }
-                else
-                {
-                    UpdatePath(_currentPath.Remove(_currentPath.Length - 1, 1));
-                }
-
-                needsRedraw = true;
-                RefreshSystemEntries();
-            }
-        }
-
-        if ((InputHandler.IsKeyPressed(SDL.Keycode.Return) || InputHandler.IsKeyPressed(SDL.Keycode.Escape)) && _systemEntries.Length > 0 && _selectedEntry == -1)
-        {
-            _selectedEntry = 0;
+            PerformAction((Action)action);
             needsRedraw = true;
-        }
-
-        if (InputHandler.IsKeyDown(SDL.Keycode.K))
-        {
-            if (InputHandler.IsKeyDown(SDL.Keycode.LCtrl))
-            {
-                _selectedEntry = -1;
-                needsRedraw = true;
-            }
-            else if (KeyRepetitionHandler.CanPress(SDL.Keycode.K) && _selectedEntry > 0)
-            {
-                KeyRepetitionHandler.Press(SDL.Keycode.K);
-                _selectedEntry--;
-                needsRedraw = true;
-            }
-        }
-
-        if (InputHandler.IsKeyDown(SDL.Keycode.J) && KeyRepetitionHandler.CanPress(SDL.Keycode.J) && _selectedEntry < _systemEntries.Length - 1)
-        {
-            KeyRepetitionHandler.Press(SDL.Keycode.J);
-            _selectedEntry++;
-            needsRedraw = true;
-        }
-
-        if (InputHandler.IsKeyPressed(SDL.Keycode.E))
-        {
-            if (InputHandler.IsKeyDown(SDL.Keycode.LCtrl) && _selectedEntry == -1)
-            {
-                if (_systemEntries.Length > 0)
-                {
-                    if (Directory.Exists(_systemEntries[0]))
-                    {
-                        UpdatePath(_systemEntries[0] + Path.DirectorySeparatorChar);
-                        RefreshSystemEntries();
-                        ClampSelectedEntry();
-                        needsRedraw = true;
-                    }
-                }
-            }
-            else if (_selectedEntry != -1)
-            {
-                if (Directory.Exists(_systemEntries[_selectedEntry]))
-                {
-                    UpdatePath(_systemEntries[_selectedEntry] + Path.DirectorySeparatorChar);
-                    RefreshSystemEntries();
-                    ClampSelectedEntry();
-                    needsRedraw = true;
-                }
-            }
-        }
-
-        if (InputHandler.IsKeyPressed(SDL.Keycode.B))
-        {
-            if ((InputHandler.IsKeyDown(SDL.Keycode.LCtrl) && _selectedEntry == -1) || _selectedEntry != -1)
-            {
-                string parentDir = GetParentDirectory();
-                UpdatePath(parentDir + (parentDir == "/" ? "" : Path.DirectorySeparatorChar));
-                RefreshSystemEntries();
-                ClampSelectedEntry();
-                needsRedraw = true;
-            }
         }
 
         KeyRepetitionHandler.Update(deltaTime);
@@ -242,13 +169,18 @@ public class App : Application
 
     private void UpdatePath(string newPath)
     {
+        string oldPath = _currentPath;
         _currentPath = newPath;
+
         if (_currentPath == string.Empty)
         {
             string? root = Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
             if (root == null) return;
             _currentPath = root;
         }
+
+        if (oldPath != _currentPath)
+            RefreshSystemEntries();
     }
 
     private bool RefreshSystemEntries()
@@ -315,6 +247,99 @@ public class App : Application
     {
         if (_systemEntries.Length > 0) _selectedEntry = 0;
         else _selectedEntry = -1;
+    }
+
+    private void PerformAction(Action action)
+    {
+        if (action == Action.EnterDirectory)
+        {
+            if (_selectedEntry != -1)
+            {
+                if (Directory.Exists(_systemEntries[_selectedEntry]))
+                {
+                    UpdatePath(_systemEntries[_selectedEntry] + Path.DirectorySeparatorChar);
+                    ClampSelectedEntry();
+                }
+            }
+
+            return;
+        }
+
+        if (action == Action.ForceEnterDirectory)
+        {
+            if (_systemEntries.Length > 0 && _selectedEntry == -1)
+            {
+                if (Directory.Exists(_systemEntries[0]))
+                {
+                    UpdatePath(_systemEntries[0] + Path.DirectorySeparatorChar);
+                }
+            }
+
+            return;
+        }
+
+        if ((action == Action.EnterParentDirectory && _selectedEntry != -1) || (action == Action.ForceEnterParentDirectory && _selectedEntry == -1))
+        {
+            string parentDir = GetParentDirectory();
+            UpdatePath(parentDir + (parentDir == "/" ? "" : Path.DirectorySeparatorChar));
+            ClampSelectedEntry();
+
+            return;
+        }
+
+        if (action == Action.LeaveSearchBar)
+        {
+            if (_systemEntries.Length > 0 && _selectedEntry == -1)
+            {
+                _selectedEntry = 0;
+            }
+
+            return;
+        }
+
+        if (action == Action.EnterSearchBar)
+        {
+            _selectedEntry = -1;
+            return;
+        }
+
+        if (action == Action.MoveUp)
+        {
+            if (_selectedEntry > 0)
+            {
+                _selectedEntry--;
+            }
+
+            return;
+        }
+
+        if (action == Action.MoveDown)
+        {
+            if (_systemEntries.Length > _selectedEntry + 1)
+            {
+                _selectedEntry++;
+            }
+
+            return;
+        }
+
+        if (action == Action.CtrlBackspace)
+        {
+            if (_currentPath[_currentPath.Length - 1] == Path.DirectorySeparatorChar)
+            {
+                UpdatePath(_currentPath = _currentPath.Remove(_currentPath.Length - 1, 1));
+            }
+
+            int index = _currentPath.LastIndexOf(Path.DirectorySeparatorChar);
+            UpdatePath(_currentPath.Substring(0, index + 1));
+            return;
+        }
+
+        if (action == Action.Backspace)
+        {
+            UpdatePath(_currentPath.Remove(_currentPath.Length - 1, 1));
+            return;
+        }
     }
 
     public override void End() 
