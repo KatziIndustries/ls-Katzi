@@ -8,4 +8,5 @@ public struct AppContext
     public required float Scroll;
     public required bool PathPermissionDenied;
     public required Texture2D? ImageTexture;
+    public required float ImageZoom;
 }

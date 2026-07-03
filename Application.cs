@@ -19,6 +19,9 @@ public class App : Application
     public const int SCROLL_SPEED = 30;
     public const int SCROLL_ANIM_SPEED = 40;
 
+    public const float IMAGE_ZOOM_SPEED = 0.2f;
+    public const float IMAGE_ZOOM_ANIM_SPEED = 30f;
+
     public const int PATH_HEIGHT = 50;
 
     public static float WindowWidth => _window.Width;
@@ -46,6 +49,8 @@ public class App : Application
     private KeybindHandler _keybindHandler = new();
 
     private Texture2D? _imageTexture = null;
+    private float _imageZoom = 1;
+    private float _preferredImageZoom = 1;
 
     private SceneRenderer _sceneRenderer;
 
@@ -82,20 +87,7 @@ public class App : Application
     {
         needsRedraw = false;
 
-        if (InputHandler.ScrollWheelDelta != 0)
-        {
-            _preferredScroll += InputHandler.ScrollWheelDelta * SCROLL_SPEED;
-            _preferredScroll = Math.Clamp(_preferredScroll, Math.Min(GetMinScroll(), 0), 0);
-        }
-
-        if (_scroll != _preferredScroll)
-        {
-            _scroll = MathHelper.Lerp(_scroll, _preferredScroll, SCROLL_ANIM_SPEED * (float)deltaTime);
-            needsRedraw = true;
-
-            if (Math.Abs(_scroll - _preferredScroll) < 1)
-                _scroll = _preferredScroll;
-        }
+        if (HandleScroll(deltaTime)) needsRedraw = true;
         
         if (_lastWindowBounds != _window.Bounds)
         {
@@ -138,7 +130,8 @@ public class App : Application
             Scroll = _scroll,
             SelectedEntry = _selectedEntry,
             SystemEntries = _systemEntries,
-            ImageTexture = _imageTexture
+            ImageTexture = _imageTexture,
+            ImageZoom = _imageZoom
         };
 
         bool deleteImageTexture = _sceneRenderer.Render(_renderer, context);
@@ -339,11 +332,53 @@ public class App : Application
             {
                 UpdatePath(_systemEntries[entryIndex]);
                 Texture2D texture = new Texture2D(textureHandle, "");
+                SDL.SetTextureScaleMode(texture.Handle, SDL.ScaleMode.Nearest);
                 
                 _imageTexture = texture;
                 return; 
             }
         }
+    }
+    
+    private bool HandleScroll(double deltaTime)
+    {
+        if (InputHandler.ScrollWheelDelta != 0)
+        {
+            if (_imageTexture != null)
+            {
+                _preferredImageZoom += InputHandler.ScrollWheelDelta * IMAGE_ZOOM_SPEED;
+                _preferredImageZoom = Math.Max(_preferredImageZoom, 0.1f);
+            }
+            else
+            {
+                _preferredScroll += InputHandler.ScrollWheelDelta * SCROLL_SPEED;
+                _preferredScroll = Math.Clamp(_preferredScroll, Math.Min(GetMinScroll(), 0), 0);
+            }
+        }
+
+        if (_scroll != _preferredScroll)
+        {
+            _scroll = LerpButCooler(_scroll, _preferredScroll, deltaTime, SCROLL_ANIM_SPEED, 1);
+            return true;
+        }
+
+        if (_imageZoom != _preferredImageZoom)
+        {
+            _imageZoom = LerpButCooler(_imageZoom, _preferredImageZoom, deltaTime, IMAGE_ZOOM_ANIM_SPEED, 0.01f);
+            return true;
+        }
+
+        return false;
+    }
+
+    private float LerpButCooler(float start, float end, double deltaTime, float speed, float errorCorrection)
+    {
+        start = MathHelper.Lerp(start, end, speed * (float)deltaTime);
+
+        if (Math.Abs(end - start) < errorCorrection)
+            start = end;
+
+        return start;
     }
 
     public override void End() 

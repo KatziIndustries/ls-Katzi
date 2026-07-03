@@ -1,3 +1,4 @@
+using System.Net.Mime;
 using System.Numerics;
 using SDL3;
 using Smash;
@@ -16,6 +17,18 @@ public class SceneRenderer
     // Returns if the image texture should be deleted
     public bool Render(Renderer renderer, AppContext context)
     {
+        bool shouldDeleteImage = false;
+        if (File.Exists(context.CurrentPath) && context.ImageTexture != null)
+        {
+            RenderFile(renderer, context);
+            shouldDeleteImage = false;
+        }
+        else
+        {
+            RenderDirectory(renderer, context);
+            shouldDeleteImage = true;
+        }
+
         Color pathColor = context.SelectedEntry == -1 ? Color.FromArgb(50, 50, 50) : Color.FromArgb(28, 28, 28);
 
         Rectangle pathRectangle = new(0, 0, App.WindowWidth, App.PATH_HEIGHT);
@@ -27,17 +40,7 @@ public class SceneRenderer
         Vector2 pathTextPosition = new(App.PATH_HEIGHT / 2);
         renderer.RenderText(_font, App.POINT_SIZE, context.CurrentPath, pathTextPosition - new Vector2(0, _font.MeasureString(context.CurrentPath, App.POINT_SIZE).Y / 2), Color.White);
 
-
-        if (File.Exists(context.CurrentPath) && context.ImageTexture != null)
-        {
-            RenderFile(renderer, context);
-            return false;
-        }
-        else
-        {
-            RenderDirectory(renderer, context);
-            return true;
-        }
+        return shouldDeleteImage;
     }
 
     private void RenderDirectory(Renderer renderer, AppContext context)
@@ -79,7 +82,7 @@ public class SceneRenderer
     {
         Texture2D imageTexture = context.ImageTexture!;
 
-        Vector2 position = new Vector2(App.WindowWidth / 2, App.WindowHeight / 2) - imageTexture.Bounds / 2;
-        renderer.RenderTexture(imageTexture, position, Color.White);
+        Vector2 position = new Vector2(App.WindowWidth / 2, App.WindowHeight / 2) - imageTexture.Bounds * context.ImageZoom / 2;
+        renderer.RenderTexture(imageTexture, position, Color.White, context.ImageZoom);
     }
 }
