@@ -13,16 +13,19 @@ public class App : Application
     public const string FONT_NAME = "Rubik-Regular";
     public const int POINT_SIZE = 25;
     
-    private const int ENTRY_SPACING = 45;
-    private const int PADDING = 20;
+    public const int ENTRY_SPACING = 45;
+    public const int PADDING = 20;
 
-    private const int SCROLL_SPEED = 30;
-    private const int SCROLL_ANIM_SPEED = 40;
+    public const int SCROLL_SPEED = 30;
+    public const int SCROLL_ANIM_SPEED = 40;
 
-    private const int PATH_HEIGHT = 50;
+    public const int PATH_HEIGHT = 50;
 
-    private Window _window;
-    private Renderer _renderer;
+    public static float WindowWidth => _window.Width;
+    public static float WindowHeight => _window.Height;
+
+    private static Window _window = null!;
+    private static Renderer _renderer = null!;
 
     private bool needsRedraw = true;
 
@@ -41,6 +44,10 @@ public class App : Application
     private int _selectedEntry = -1;
 
     private KeybindHandler _keybindHandler = new();
+
+    private Texture2D? _imageTexture = null;
+
+    private SceneRenderer _sceneRenderer;
 
     public App() 
     {
@@ -63,6 +70,9 @@ public class App : Application
         _keybindHandler.RegisterKeybind(SDL.Keycode.J, Action.MoveDown, false, true);
         _keybindHandler.RegisterKeybind(SDL.Keycode.Backspace, Action.Backspace, false, true);
         _keybindHandler.RegisterKeybind(SDL.Keycode.Backspace, Action.CtrlBackspace, true, true);
+
+        Font font = AssetManager.Get<Font>(FONT_NAME);
+        _sceneRenderer = new(font);
 
         _currentPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + Path.DirectorySeparatorChar;
         RefreshSystemEntries();
@@ -121,48 +131,23 @@ public class App : Application
     {
         _renderer.Clear(BackgroundColor);
 
-        Font font = AssetManager.Get<Font>(FONT_NAME);
-
-        Rectangle pathRectangle = new(0, 0, _window.Width, PATH_HEIGHT);
-        _renderer.RenderFilledRectangle(pathRectangle, PathColor);
-
-        int lineColor = PathColor.R + 20; 
-        _renderer.RenderLine(pathRectangle.Position + new Vector2(0, pathRectangle.Height), pathRectangle.Position + pathRectangle.Bounds, Color.FromArgb(lineColor, lineColor, lineColor));
-
-        Vector2 pathTextPosition = new(PATH_HEIGHT / 2);
-        _renderer.RenderText(font, POINT_SIZE, _currentPath, pathTextPosition - new Vector2(0, font.MeasureString(_currentPath, POINT_SIZE).Y / 2), Color.White);
-
-        Vector2 entriesStartPosition = new Vector2(PADDING) + new Vector2(0, _scroll + PATH_HEIGHT);
-
-        Rectangle clipRect = new Rectangle(0, PATH_HEIGHT, _window.Width, _window.Height - PATH_HEIGHT);
-        SDL.SetRenderClipRect(_renderer.Handle, clipRect.ToSDLRect());
-        
-        if (!_pathPermissionDenied)
+        AppContext context = new()
         {
-            for (int i = 0; i < _systemEntries.Length; i++)
-            {
-                Vector2 position = entriesStartPosition + new Vector2(0, i * ENTRY_SPACING);
+            CurrentPath = _currentPath,
+            PathPermissionDenied = _pathPermissionDenied,
+            Scroll = _scroll,
+            SelectedEntry = _selectedEntry,
+            SystemEntries = _systemEntries,
+            ImageTexture = _imageTexture
+        };
 
-                if (i == _selectedEntry)
-                {
-                    Vector2 hitboxStartPos = position;
-                    hitboxStartPos.X = 0;
-                    hitboxStartPos.Y -= ENTRY_SPACING / 2 - font.MeasureString(_systemEntries[i], POINT_SIZE).Y / 2;
+        bool deleteImageTexture = _sceneRenderer.Render(_renderer, context);
 
-                    Rectangle rect = new Rectangle(hitboxStartPos, _window.Width, ENTRY_SPACING);
-                    _renderer.RenderFilledRectangle(rect, Color.FromArgb(50, 50, 50));
-                }
-
-                bool isDirectory = Directory.Exists(_systemEntries[i]);
-                _renderer.RenderText(font, POINT_SIZE, Path.GetFileName(_systemEntries[i]), position, isDirectory ? Color.RoyalBlue : Color.White);
-            }
-        }
-        else
+        if (deleteImageTexture && _imageTexture != null)
         {
-            _renderer.RenderText(font, POINT_SIZE, "Can't access this directory (Permission denied)", entriesStartPosition, Color.Red);
+            _imageTexture.Dispose();
+            _imageTexture = null;
         }
-
-        SDL.SetRenderClipRect(_renderer.Handle, IntPtr.Zero);
 
         _renderer.RenderPresent();
     }
@@ -180,7 +165,9 @@ public class App : Application
         }
 
         if (oldPath != _currentPath)
+        {
             RefreshSystemEntries();
+        }
     }
 
     private bool RefreshSystemEntries()
@@ -206,9 +193,9 @@ public class App : Application
         try
         {
             if (_showHiddenFiles)
-                newEntries = Directory.GetFileSystemEntries(path, "*" + filter + "*");
+                newEntries = Directory.GetFileSystemEntries(path, "*" + filter + "*").OrderByDescending(f => File.GetLastWriteTime(f)).ToArray();
             else
-                newEntries = Directory.GetFileSystemEntries(path, "*" + filter + "*").Where(f => (File.GetAttributes(f) & FileAttributes.Hidden) != FileAttributes.Hidden).ToArray();
+                newEntries = Directory.GetFileSystemEntries(path, "*" + filter + "*").Where(f => (File.GetAttributes(f) & FileAttributes.Hidden) != FileAttributes.Hidden).OrderByDescending(f => File.GetLastWriteTime(f)).ToArray();
         }
         catch (UnauthorizedAccessException)
         {
@@ -236,11 +223,14 @@ public class App : Application
         return -PADDING * 2 - (_systemEntries.Length * ENTRY_SPACING) + (_window.Height - PATH_HEIGHT);
     }
 
-    private string GetParentDirectory()
+    private (string directory, bool shouldClamp) GetParentDirectory()
     {
+        if (File.Exists(_currentPath))
+            return (Path.GetDirectoryName(_currentPath)!, false);
+
         string dirName = Path.GetDirectoryName(_currentPath) ?? "/";
         string parentDirName = (Directory.GetParent(dirName) ?? new DirectoryInfo("/")).FullName;
-        return parentDirName;
+        return (parentDirName, true);
     }
 
     private void ClampSelectedEntry()
@@ -255,11 +245,7 @@ public class App : Application
         {
             if (_selectedEntry != -1)
             {
-                if (Directory.Exists(_systemEntries[_selectedEntry]))
-                {
-                    UpdatePath(_systemEntries[_selectedEntry] + Path.DirectorySeparatorChar);
-                    ClampSelectedEntry();
-                }
+                OpenFile(_selectedEntry);
             }
 
             return;
@@ -269,10 +255,7 @@ public class App : Application
         {
             if (_systemEntries.Length > 0 && _selectedEntry == -1)
             {
-                if (Directory.Exists(_systemEntries[0]))
-                {
-                    UpdatePath(_systemEntries[0] + Path.DirectorySeparatorChar);
-                }
+                OpenFile(0);
             }
 
             return;
@@ -280,9 +263,9 @@ public class App : Application
 
         if ((action == Action.EnterParentDirectory && _selectedEntry != -1) || (action == Action.ForceEnterParentDirectory && _selectedEntry == -1))
         {
-            string parentDir = GetParentDirectory();
+            (string parentDir, bool shouldClamp) = GetParentDirectory();
             UpdatePath(parentDir + (parentDir == "/" ? "" : Path.DirectorySeparatorChar));
-            ClampSelectedEntry();
+            if (shouldClamp) ClampSelectedEntry();
 
             return;
         }
@@ -339,6 +322,27 @@ public class App : Application
         {
             UpdatePath(_currentPath.Remove(_currentPath.Length - 1, 1));
             return;
+        }
+    }
+
+    private void OpenFile(int entryIndex)
+    {
+        if (Directory.Exists(_systemEntries[entryIndex]))
+        {
+            UpdatePath(_systemEntries[entryIndex] + Path.DirectorySeparatorChar);
+            return;
+        }
+        else if (File.Exists(_systemEntries[entryIndex]))
+        {
+            nint textureHandle = Image.LoadTexture(_renderer.Handle, _systemEntries[entryIndex]);
+            if (textureHandle != 0)
+            {
+                UpdatePath(_systemEntries[entryIndex]);
+                Texture2D texture = new Texture2D(textureHandle, "");
+                
+                _imageTexture = texture;
+                return; 
+            }
         }
     }
 
