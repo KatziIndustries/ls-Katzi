@@ -79,8 +79,6 @@ public class App : Application
 
     public override void Update(double deltaTime) 
     {
-        Console.WriteLine(deltaTime);
-
         needsRedraw = false;
 
         if (InputHandler.ScrollWheelDelta != 0)
@@ -245,9 +243,6 @@ public class App : Application
             _selectedEntry = 0;
         else 
             _selectedEntry = -1;
-
-        //_scroll = 0;
-        //_preferredScroll = 0;
     }
 
     private void PerformAction(Action action)
@@ -353,7 +348,7 @@ public class App : Application
 
     private void CenteriseScroll(bool immediate = false)
     {
-        float value = Math.Clamp(-(ENTRY_SPACING * _selectedEntry) + WindowHeight / 2, -(ENTRY_SPACING * _systemEntries.Length), 0);
+        float value = Math.Clamp(-(ENTRY_SPACING * _selectedEntry) + WindowHeight / 2, Math.Min(-(ENTRY_SPACING * _systemEntries.Length) + WindowHeight - PATH_HEIGHT - PADDING, 0), 0);
 
         _preferredScroll = value;
 
