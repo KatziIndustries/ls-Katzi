@@ -54,7 +54,9 @@ public class SceneRenderer
         {
             for (int i = 0; i < context.SystemEntries.Length; i++)
             {
-                Vector2 position = entriesStartPosition + new Vector2(0, i * App.ENTRY_SPACING);
+                Vector2 position = Vector2.Round(entriesStartPosition + new Vector2(0, i * App.ENTRY_SPACING));
+                if (position.Y < 0) continue;
+                if (position.Y > App.WindowHeight) break;
 
                 if (i == context.SelectedEntry)
                 {

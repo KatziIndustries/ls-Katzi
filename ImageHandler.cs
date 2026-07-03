@@ -10,6 +10,8 @@ public class ImageHandler
 
     public Image? Image => CreateImage();
 
+    private float ZoomSpeed => ZOOM_SPEED * _zoom;
+
     private Texture2D? _texture = null;
     private Vector2 _offset;
 
@@ -24,13 +26,13 @@ public class ImageHandler
 
         {
             if (InputHandler.ScrollWheelDelta != 0)
-                _preferredZoom += InputHandler.ScrollWheelDelta * ZOOM_SPEED;
+                _preferredZoom += InputHandler.ScrollWheelDelta * ZoomSpeed;
 
             if (InputHandler.IsKeyPressed(SDL.Keycode.Plus))
-                _preferredZoom += ZOOM_SPEED * 2;
+                _preferredZoom += ZoomSpeed * 2;
 
             if (InputHandler.IsKeyPressed(SDL.Keycode.Minus))
-                _preferredZoom -= ZOOM_SPEED * 2;
+                _preferredZoom -= ZoomSpeed * 2;
 
             _preferredZoom = Math.Max(_preferredZoom, 0.1f);
         }
@@ -75,6 +77,10 @@ public class ImageHandler
     public void SetImage(Texture2D texture)
     {
         _texture = texture;
+
+        float zoom = Math.Max(App.WindowWidth, App.WindowHeight) / (Math.Max(_texture.Width, _texture.Height) * 2);
+        _zoom = zoom;
+        _preferredZoom = zoom;
     }
 
     private Image? CreateImage()

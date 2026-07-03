@@ -79,6 +79,8 @@ public class App : Application
 
     public override void Update(double deltaTime) 
     {
+        Console.WriteLine(deltaTime);
+
         needsRedraw = false;
 
         if (InputHandler.ScrollWheelDelta != 0)
@@ -181,6 +183,8 @@ public class App : Application
         {
             if (_systemEntries.Length > 0)
             {
+                _scroll = 0;
+                _preferredScroll = 0;
                 _systemEntries = [];
                 _selectedEntry = -1;
                 return true;
@@ -197,6 +201,8 @@ public class App : Application
         }
         catch (UnauthorizedAccessException)
         {
+            _scroll = 0;
+            _preferredScroll = 0;
             _systemEntries = [];
             _pathPermissionDenied = true;
             _selectedEntry = -1;
@@ -211,6 +217,8 @@ public class App : Application
         }
         else
         {
+            _scroll = 0;
+            _preferredScroll = 0;
             _systemEntries = newEntries;
             return true;
         }
@@ -233,11 +241,13 @@ public class App : Application
 
     private void ClampSelectedEntry()
     {
-        if (_systemEntries.Length > 0) _selectedEntry = 0;
-        else _selectedEntry = -1;
+        if (_systemEntries.Length > 0) 
+            _selectedEntry = 0;
+        else 
+            _selectedEntry = -1;
 
-        _scroll = 0;
-        _preferredScroll = 0;
+        //_scroll = 0;
+        //_preferredScroll = 0;
     }
 
     private void PerformAction(Action action)
@@ -265,8 +275,21 @@ public class App : Application
         if ((action == Action.EnterParentDirectory && _selectedEntry != -1) || (action == Action.ForceEnterParentDirectory && _selectedEntry == -1))
         {
             (string parentDir, bool shouldClamp) = GetParentDirectory();
+            string oldPath = _currentPath;
             UpdatePath(parentDir + (parentDir == "/" ? "" : Path.DirectorySeparatorChar));
-            if (shouldClamp) ClampSelectedEntry();
+
+            int entryIndex = FindEntryIndex(oldPath);
+
+            if (entryIndex != -1)
+            {
+                _selectedEntry = entryIndex;
+                CenteriseScroll(true);
+            }
+            else
+            {
+                if (shouldClamp) 
+                    ClampSelectedEntry();
+            }
 
             return;
         }
@@ -292,6 +315,7 @@ public class App : Application
             if (_selectedEntry > 0)
             {
                 _selectedEntry--;
+                CenteriseScroll();
             }
 
             return;
@@ -302,6 +326,7 @@ public class App : Application
             if (_systemEntries.Length > _selectedEntry + 1)
             {
                 _selectedEntry++;
+                CenteriseScroll();
             }
 
             return;
@@ -326,12 +351,21 @@ public class App : Application
         }
     }
 
+    private void CenteriseScroll(bool immediate = false)
+    {
+        float value = Math.Clamp(-(ENTRY_SPACING * _selectedEntry) + WindowHeight / 2, -(ENTRY_SPACING * _systemEntries.Length), 0);
+
+        _preferredScroll = value;
+
+        if (immediate)
+            _scroll = value;
+    }
+
     private void OpenFile(int entryIndex)
     {
         if (Directory.Exists(_systemEntries[entryIndex]))
         {
             UpdatePath(_systemEntries[entryIndex] + Path.DirectorySeparatorChar);
-            ClampSelectedEntry();
             return;
         }
         else if (File.Exists(_systemEntries[entryIndex]))
@@ -340,6 +374,10 @@ public class App : Application
             if (textureHandle != 0)
             {
                 UpdatePath(_systemEntries[entryIndex]);
+
+                if (_selectedEntry == -1) 
+                    _selectedEntry = 0;
+
                 Texture2D texture = new Texture2D(textureHandle, "");
                 SDL.SetTextureScaleMode(texture.Handle, SDL.ScaleMode.Nearest);
                 
@@ -347,6 +385,11 @@ public class App : Application
                 return; 
             }
         }
+    }
+
+    private int FindEntryIndex(string entry)
+    {
+        return _systemEntries.IndexOf(entry);
     }
     
     public static float Lerp(float start, float end, double deltaTime, float speed, float errorCorrection)
