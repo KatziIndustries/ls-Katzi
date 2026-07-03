@@ -19,13 +19,11 @@ public class App : Application
     public const int SCROLL_SPEED = 30;
     public const int SCROLL_ANIM_SPEED = 40;
 
-    public const float IMAGE_ZOOM_SPEED = 0.2f;
-    public const float IMAGE_ZOOM_ANIM_SPEED = 30f;
-
     public const int PATH_HEIGHT = 50;
 
     public static float WindowWidth => _window.Width;
     public static float WindowHeight => _window.Height;
+    public static Vector2 WindowBounds => _window.Bounds;
 
     private static Window _window = null!;
     private static Renderer _renderer = null!;
@@ -47,12 +45,8 @@ public class App : Application
     private int _selectedEntry = -1;
 
     private KeybindHandler _keybindHandler = new();
-
-    private Texture2D? _imageTexture = null;
-    private float _imageZoom = 1;
-    private float _preferredImageZoom = 1;
-
     private SceneRenderer _sceneRenderer;
+    private ImageHandler _imageHandler = new();
 
     public App() 
     {
@@ -87,8 +81,17 @@ public class App : Application
     {
         needsRedraw = false;
 
-        if (HandleScroll(deltaTime)) needsRedraw = true;
-        
+        if (InputHandler.ScrollWheelDelta != 0)
+        {
+            _preferredScroll += InputHandler.ScrollWheelDelta * SCROLL_SPEED;
+            _preferredScroll = Math.Clamp(_preferredScroll, Math.Min(GetMinScroll(), 0), 0);
+        }
+
+        if (_scroll != _preferredScroll)
+        {
+            _scroll = Lerp(_scroll, _preferredScroll, deltaTime, SCROLL_ANIM_SPEED, 1);
+        }
+
         if (_lastWindowBounds != _window.Bounds)
         {
             needsRedraw = true;
@@ -110,6 +113,9 @@ public class App : Application
             needsRedraw = true;
         }
 
+        if (_imageHandler.Update(deltaTime))
+            needsRedraw = true;
+
         KeyRepetitionHandler.Update(deltaTime);
 
         if (needsRedraw)
@@ -130,16 +136,14 @@ public class App : Application
             Scroll = _scroll,
             SelectedEntry = _selectedEntry,
             SystemEntries = _systemEntries,
-            ImageTexture = _imageTexture,
-            ImageZoom = _imageZoom
+            Image = _imageHandler.Image
         };
 
         bool deleteImageTexture = _sceneRenderer.Render(_renderer, context);
 
-        if (deleteImageTexture && _imageTexture != null)
+        if (deleteImageTexture)
         {
-            _imageTexture.Dispose();
-            _imageTexture = null;
+            _imageHandler.DisposeImage();
         }
 
         _renderer.RenderPresent();
@@ -327,51 +331,20 @@ public class App : Application
         }
         else if (File.Exists(_systemEntries[entryIndex]))
         {
-            nint textureHandle = Image.LoadTexture(_renderer.Handle, _systemEntries[entryIndex]);
+            nint textureHandle = SDL3.Image.LoadTexture(_renderer.Handle, _systemEntries[entryIndex]);
             if (textureHandle != 0)
             {
                 UpdatePath(_systemEntries[entryIndex]);
                 Texture2D texture = new Texture2D(textureHandle, "");
                 SDL.SetTextureScaleMode(texture.Handle, SDL.ScaleMode.Nearest);
                 
-                _imageTexture = texture;
+                _imageHandler.SetImage(texture);
                 return; 
             }
         }
     }
     
-    private bool HandleScroll(double deltaTime)
-    {
-        if (InputHandler.ScrollWheelDelta != 0)
-        {
-            if (_imageTexture != null)
-            {
-                _preferredImageZoom += InputHandler.ScrollWheelDelta * IMAGE_ZOOM_SPEED;
-                _preferredImageZoom = Math.Max(_preferredImageZoom, 0.1f);
-            }
-            else
-            {
-                _preferredScroll += InputHandler.ScrollWheelDelta * SCROLL_SPEED;
-                _preferredScroll = Math.Clamp(_preferredScroll, Math.Min(GetMinScroll(), 0), 0);
-            }
-        }
-
-        if (_scroll != _preferredScroll)
-        {
-            _scroll = LerpButCooler(_scroll, _preferredScroll, deltaTime, SCROLL_ANIM_SPEED, 1);
-            return true;
-        }
-
-        if (_imageZoom != _preferredImageZoom)
-        {
-            _imageZoom = LerpButCooler(_imageZoom, _preferredImageZoom, deltaTime, IMAGE_ZOOM_ANIM_SPEED, 0.01f);
-            return true;
-        }
-
-        return false;
-    }
-
-    private float LerpButCooler(float start, float end, double deltaTime, float speed, float errorCorrection)
+    public static float Lerp(float start, float end, double deltaTime, float speed, float errorCorrection)
     {
         start = MathHelper.Lerp(start, end, speed * (float)deltaTime);
 

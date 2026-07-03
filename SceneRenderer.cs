@@ -18,7 +18,7 @@ public class SceneRenderer
     public bool Render(Renderer renderer, AppContext context)
     {
         bool shouldDeleteImage = false;
-        if (File.Exists(context.CurrentPath) && context.ImageTexture != null)
+        if (File.Exists(context.CurrentPath) && context.Image != null)
         {
             RenderFile(renderer, context);
             shouldDeleteImage = false;
@@ -80,9 +80,9 @@ public class SceneRenderer
 
     private void RenderFile(Renderer renderer, AppContext context)
     {
-        Texture2D imageTexture = context.ImageTexture!;
+        Image image = (Image)context.Image!;
 
-        Vector2 position = new Vector2(App.WindowWidth / 2, App.WindowHeight / 2) - imageTexture.Bounds * context.ImageZoom / 2;
-        renderer.RenderTexture(imageTexture, position, Color.White, context.ImageZoom);
+        Vector2 position = new Vector2(App.WindowWidth / 2, App.WindowHeight / 2) - image.Texture.Bounds * image.Zoom / 2;
+        renderer.RenderTexture(image.Texture, position - image.Offset, Color.White, image.Zoom);
     }
 }
