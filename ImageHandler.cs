@@ -22,22 +22,18 @@ public class ImageHandler
     {
         bool needsRedraw = false;
 
-        if (InputHandler.ScrollWheelDelta != 0)
         {
-            _preferredZoom += InputHandler.ScrollWheelDelta * ZOOM_SPEED;
-        }
+            if (InputHandler.ScrollWheelDelta != 0)
+                _preferredZoom += InputHandler.ScrollWheelDelta * ZOOM_SPEED;
 
-        if (InputHandler.IsKeyPressed(SDL.Keycode.Plus))
-        {
-            _preferredZoom += ZOOM_SPEED * 2;
-        }
+            if (InputHandler.IsKeyPressed(SDL.Keycode.Plus))
+                _preferredZoom += ZOOM_SPEED * 2;
 
-        if (InputHandler.IsKeyPressed(SDL.Keycode.Minus))
-        {
-            _preferredZoom -= ZOOM_SPEED * 2;
-        }
+            if (InputHandler.IsKeyPressed(SDL.Keycode.Minus))
+                _preferredZoom -= ZOOM_SPEED * 2;
 
-        _preferredZoom = Math.Max(_preferredZoom, 0.1f);
+            _preferredZoom = Math.Max(_preferredZoom, 0.1f);
+        }
 
         if (_zoom != _preferredZoom)
         {
@@ -59,11 +55,7 @@ public class ImageHandler
 
             needsRedraw = true;
         }
-        else
-        {
-            _holdStartPosition = null;
-        }
-
+        else _holdStartPosition = null;
 
         return needsRedraw;
     }

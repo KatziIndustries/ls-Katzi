@@ -90,12 +90,13 @@ public class App : Application
         if (_scroll != _preferredScroll)
         {
             _scroll = Lerp(_scroll, _preferredScroll, deltaTime, SCROLL_ANIM_SPEED, 1);
+            needsRedraw = true;
         }
 
         if (_lastWindowBounds != _window.Bounds)
         {
-            needsRedraw = true;
             _lastWindowBounds = _window.Bounds;
+            needsRedraw = true;
         }
 
         if (InputHandler.TextInput != null && InputHandler.TextInput != string.Empty && _selectedEntry == -1)
@@ -234,13 +235,16 @@ public class App : Application
     {
         if (_systemEntries.Length > 0) _selectedEntry = 0;
         else _selectedEntry = -1;
+
+        _scroll = 0;
+        _preferredScroll = 0;
     }
 
     private void PerformAction(Action action)
     {
         if (action == Action.EnterDirectory)
         {
-            if (_selectedEntry != -1)
+            if (_selectedEntry != -1 && _selectedEntry < _systemEntries.Length)
             {
                 OpenFile(_selectedEntry);
             }
@@ -327,6 +331,7 @@ public class App : Application
         if (Directory.Exists(_systemEntries[entryIndex]))
         {
             UpdatePath(_systemEntries[entryIndex] + Path.DirectorySeparatorChar);
+            ClampSelectedEntry();
             return;
         }
         else if (File.Exists(_systemEntries[entryIndex]))
