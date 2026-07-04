@@ -1,5 +1,8 @@
-public enum Scene
+using Smash.Graphics;
+
+public abstract class Scene : IScene
 {
-    FileManager,
-    Config
+    public abstract bool Update(double deltaTime);
+    public abstract void Render(Renderer renderer);
+    public abstract void PerformAction(Action action);
 }

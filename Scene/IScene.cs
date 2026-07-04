@@ -2,5 +2,7 @@ using Smash.Graphics;
 
 public interface IScene
 {
-    public SceneRenderResult Render(Renderer renderer, AppContext context);
+    public bool Update(double deltaTime);
+    public void Render(Renderer renderer);
+    public void PerformAction(Action action);
 }
