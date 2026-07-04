@@ -308,7 +308,7 @@ public class FileManagerScene : Scene
 
     private void OpenFileType(string entry, string extension)
     {
-        FileType fileType = FileTypeUtils.FromExtension(extension);
+        FileType fileType = FileTypeUtils.FromExtension(extension, entry);
 
         if (fileType == FileType.Unknown)
         {
@@ -325,12 +325,25 @@ public class FileManagerScene : Scene
             return;
         }
 
-        ProcessStartInfo processStartInfo = new()
+        ProcessStartInfo processStartInfo;
+
+        if (fileType == FileType.Executable)
         {
-            FileName = defaultApp,
-            Arguments = entry,
-            UseShellExecute = true
-        };
+            processStartInfo = new()
+            {
+                FileName = entry,
+                UseShellExecute = true
+            };
+        }
+        else
+        {
+            processStartInfo = new()
+            {
+                FileName = defaultApp,
+                Arguments = entry,
+                UseShellExecute = true
+            };
+        }
 
         Process.Start(processStartInfo);
     }
@@ -359,6 +372,17 @@ public class FileManagerScene : Scene
             }
 
             return;
+        }
+
+        if (fileType == FileType.Executable)
+        {
+            ProcessStartInfo processStartInfo = new()
+            {
+                FileName = entry,
+                UseShellExecute = true
+            };
+
+            Process.Start(processStartInfo);
         }
     }
 

@@ -50,7 +50,7 @@ public static class FileTypeUtils
             RebuildConfig();
     }
 
-    public static FileType FromExtension(string extension)
+    public static FileType FromExtension(string extension, string entry)
     {
         if (extension == ".jpeg" ||
             extension == ".jpg"  ||
@@ -85,6 +85,19 @@ public static class FileTypeUtils
             extension == ".bat")
         {
             return FileType.Text;
+        }
+
+        if (extension == ".exe" && OperatingSystem.IsWindows())
+        {
+            return FileType.Executable;
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            UnixFileMode fileMode = File.GetUnixFileMode(entry);
+
+            if (fileMode.HasFlag(UnixFileMode.UserExecute))
+                return FileType.Executable;
         }
 
         return FileType.Unknown;
