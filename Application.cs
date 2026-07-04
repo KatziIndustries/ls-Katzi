@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using SDL3;
 using Smash;
@@ -227,14 +228,13 @@ public class App : Application
         return -PADDING * 2 - (_systemEntries.Length * ENTRY_SPACING) + (_window.Height - PATH_HEIGHT);
     }
 
-    private (string directory, bool shouldClamp) GetParentDirectory()
+    private string GetParentDirectory()
     {
         if (File.Exists(_currentPath))
-            return (Path.GetDirectoryName(_currentPath)!, false);
+            return Path.GetDirectoryName(_currentPath)!;
 
         string dirName = Path.GetDirectoryName(_currentPath) ?? "/";
-        string parentDirName = (Directory.GetParent(dirName) ?? new DirectoryInfo("/")).FullName;
-        return (parentDirName, true);
+        return (Directory.GetParent(dirName) ?? new DirectoryInfo("/")).FullName;
     }
 
     private void ClampSelectedEntry()
@@ -269,23 +269,23 @@ public class App : Application
 
         if ((action == Action.EnterParentDirectory && _selectedEntry != -1) || (action == Action.ForceEnterParentDirectory && _selectedEntry == -1))
         {
-            (string parentDir, bool shouldClamp) = GetParentDirectory();
+            string parentDir = GetParentDirectory();
             string oldPath = _currentPath;
             UpdatePath(parentDir + (parentDir == "/" ? "" : Path.DirectorySeparatorChar));
 
+            if (Directory.Exists(oldPath)) oldPath = oldPath.Remove(oldPath.Length - 1, 1);
             int entryIndex = FindEntryIndex(oldPath);
 
             if (entryIndex != -1)
             {
                 _selectedEntry = entryIndex;
-                CenteriseScroll(true);
             }
             else
             {
-                if (shouldClamp) 
-                    ClampSelectedEntry();
+                _selectedEntry = 0;
             }
 
+            CenteriseScroll(true);
             return;
         }
 
@@ -358,17 +358,61 @@ public class App : Application
 
     private void OpenFile(int entryIndex)
     {
-        if (Directory.Exists(_systemEntries[entryIndex]))
+        string entry = _systemEntries[entryIndex];
+        if (Directory.Exists(entry))
         {
-            UpdatePath(_systemEntries[entryIndex] + Path.DirectorySeparatorChar);
+            UpdatePath(entry + Path.DirectorySeparatorChar);
+            if (_selectedEntry != -1) 
+                _selectedEntry = 0;
             return;
         }
-        else if (File.Exists(_systemEntries[entryIndex]))
+        else if (File.Exists(entry))
         {
-            nint textureHandle = SDL3.Image.LoadTexture(_renderer.Handle, _systemEntries[entryIndex]);
+            string extension = Path.GetExtension(entry);
+            OpenFileType(entry, extension);
+        }
+    }
+
+    private void OpenFileType(string entry, string extension)
+    {
+        FileType fileType = FileTypeUtils.FromExtension(extension);
+
+        if (fileType == FileType.Unknown)
+        {
+            Console.WriteLine($"""Unknown file type "{extension}" """);
+            return;
+        }
+
+        string defaultApp = FileTypeUtils.DefaultApplications[fileType];
+
+        if (defaultApp == "Built-In")
+        {
+            OpenFileTypeBuiltIn(entry, fileType);
+            return;
+        }
+
+        ProcessStartInfo processStartInfo = new()
+        {
+            FileName = defaultApp,
+            Arguments = entry,
+            UseShellExecute = true
+        };
+
+        Process.Start(processStartInfo);
+    }
+
+    private void OpenFileTypeBuiltIn(string entry, FileType fileType)
+    {
+        if (fileType == FileType.Unknown)
+            return;
+
+        if (fileType == FileType.Image)
+        {
+            nint textureHandle = SDL3.Image.LoadTexture(_renderer.Handle, entry);
+
             if (textureHandle != 0)
             {
-                UpdatePath(_systemEntries[entryIndex]);
+                UpdatePath(entry);
 
                 if (_selectedEntry == -1) 
                     _selectedEntry = 0;
@@ -379,6 +423,8 @@ public class App : Application
                 _imageHandler.SetImage(texture);
                 return; 
             }
+
+            return;
         }
     }
 
