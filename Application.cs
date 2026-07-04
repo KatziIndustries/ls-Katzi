@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net;
 using System.Numerics;
 using SDL3;
 using Smash;
@@ -9,9 +10,11 @@ using Color = System.Drawing.Color;
 public class App : Application 
 {
     public static readonly Color BackgroundColor = Color.FromArgb(25, 25, 25);
+    public static readonly Color ForegroundColor = Color.FromArgb(50, 50, 50);
     public Color PathColor => _selectedEntry == -1 ? Color.FromArgb(50, 50, 50) : Color.FromArgb(28, 28, 28);
 
     public const string FONT_NAME = "Rubik-Regular";
+    public const int BIG_POINT_SIZE = 34;
     public const int POINT_SIZE = 25;
     
     public const int ENTRY_SPACING = 45;
@@ -49,8 +52,10 @@ public class App : Application
     private int _selectedEntry = -1;
 
     private KeybindHandler _keybindHandler = new();
-    private SceneRenderer _sceneRenderer;
+    private SceneRenderer _sceneRenderer = new();
     private ImageHandler _imageHandler = new();
+
+    private Scene _scene = Scene.FileManager;
 
     public App() 
     {
@@ -78,9 +83,7 @@ public class App : Application
         _keybindHandler.RegisterKeybind(SDL.Keycode.J, Action.MoveDown, false, true);
         _keybindHandler.RegisterKeybind(SDL.Keycode.Backspace, Action.Backspace, false, true);
         _keybindHandler.RegisterKeybind(SDL.Keycode.Backspace, Action.CtrlBackspace, true, true);
-
-        Font font = AssetManager.Get<Font>(FONT_NAME);
-        _sceneRenderer = new(font);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.Comma, Action.ToggleConfig , true, false);
 
         _currentPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + Path.DirectorySeparatorChar;
         RefreshSystemEntries();
@@ -149,9 +152,9 @@ public class App : Application
             Image = _imageHandler.Image
         };
 
-        bool deleteImageTexture = _sceneRenderer.Render(_renderer, context);
+        SceneRenderResult sceneRenderResult = _sceneRenderer.Render(_renderer, context, _scene);
 
-        if (deleteImageTexture)
+        if (sceneRenderResult.DeleteImage)
         {
             _imageHandler.DisposeImage();
         }
@@ -243,14 +246,6 @@ public class App : Application
 
         string dirName = Path.GetDirectoryName(_currentPath) ?? "/";
         return (Directory.GetParent(dirName) ?? new DirectoryInfo("/")).FullName;
-    }
-
-    private void ClampSelectedEntry()
-    {
-        if (_systemEntries.Length > 0) 
-            _selectedEntry = 0;
-        else 
-            _selectedEntry = -1;
     }
 
     private void PerformAction(Action action)
@@ -352,6 +347,14 @@ public class App : Application
             UpdatePath(_currentPath.Remove(_currentPath.Length - 1, 1));
             return;
         }
+
+        if (action == Action.ToggleConfig)
+        {
+            if (_scene == Scene.Config)
+                _scene = Scene.FileManager;
+            else
+                _scene = Scene.Config;
+        }
     }
 
     private void CenteriseScroll(bool immediate = false)
@@ -370,8 +373,10 @@ public class App : Application
         if (Directory.Exists(entry))
         {
             UpdatePath(entry + Path.DirectorySeparatorChar);
+
             if (_selectedEntry != -1) 
                 _selectedEntry = 0;
+
             return;
         }
         else if (File.Exists(entry))

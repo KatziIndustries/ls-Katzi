@@ -1,23 +1,17 @@
-using System.Net.Mime;
+using Color = System.Drawing.Color;
+using Smash.Graphics;
 using System.Numerics;
 using SDL3;
 using Smash;
-using Smash.Graphics;
-using Color = System.Drawing.Color;
 
-public class SceneRenderer
+public class FileManagerScene : IScene
 {
-    private Font _font;
-
-    public SceneRenderer(Font font)
+    public SceneRenderResult Render(Renderer renderer, AppContext context)
     {
-        _font = font;
-    }
+        Font font = AssetManager.Get<Font>(App.FONT_NAME);
 
-    // Returns if the image texture should be deleted
-    public bool Render(Renderer renderer, AppContext context)
-    {
         bool shouldDeleteImage = false;
+
         if (File.Exists(context.CurrentPath) && context.Image != null)
         {
             RenderFile(renderer, context);
@@ -38,13 +32,18 @@ public class SceneRenderer
         renderer.RenderLine(pathRectangle.Position + new Vector2(0, pathRectangle.Height), pathRectangle.Position + pathRectangle.Bounds, Color.FromArgb(lineColor, lineColor, lineColor));
 
         Vector2 pathTextPosition = new(App.PATH_HEIGHT / 2);
-        renderer.RenderText(_font, App.POINT_SIZE, context.CurrentPath, pathTextPosition - new Vector2(0, _font.MeasureString(context.CurrentPath, App.POINT_SIZE).Y / 2), Color.White);
+        renderer.RenderText(font, App.POINT_SIZE, context.CurrentPath, pathTextPosition - new Vector2(0, font.MeasureString(context.CurrentPath, App.POINT_SIZE).Y / 2), Color.White);
 
-        return shouldDeleteImage;
+        return new()
+        {
+            DeleteImage = shouldDeleteImage
+        };
     }
 
     private void RenderDirectory(Renderer renderer, AppContext context)
     {
+        Font font = AssetManager.Get<Font>(App.FONT_NAME);
+
         Vector2 entriesStartPosition = new Vector2(App.PADDING) + new Vector2(0, context.Scroll + App.PATH_HEIGHT);
 
         Rectangle clipRect = new Rectangle(0, App.PATH_HEIGHT, App.WindowWidth, App.WindowHeight - App.PATH_HEIGHT);
@@ -62,19 +61,19 @@ public class SceneRenderer
                 {
                     Vector2 hitboxStartPos = position;
                     hitboxStartPos.X = 0;
-                    hitboxStartPos.Y -= App.ENTRY_SPACING / 2 - _font.MeasureString(context.SystemEntries[i], App.POINT_SIZE).Y / 2;
+                    hitboxStartPos.Y -= App.ENTRY_SPACING / 2 - font.MeasureString(context.SystemEntries[i], App.POINT_SIZE).Y / 2;
 
                     Rectangle rect = new Rectangle(hitboxStartPos, App.WindowWidth, App.ENTRY_SPACING);
                     renderer.RenderFilledRectangle(rect, Color.FromArgb(50, 50, 50));
                 }
 
                 bool isDirectory = Directory.Exists(context.SystemEntries[i]);
-                renderer.RenderText(_font, App.POINT_SIZE, Path.GetFileName(context.SystemEntries[i]), position, isDirectory ? Color.RoyalBlue : Color.White);
+                renderer.RenderText(font, App.POINT_SIZE, Path.GetFileName(context.SystemEntries[i]), position, isDirectory ? Color.RoyalBlue : Color.White);
             }
         }
         else
         {
-            renderer.RenderText(_font, App.POINT_SIZE, "Can't access this directory (Permission denied)", entriesStartPosition, Color.Red);
+            renderer.RenderText(font, App.POINT_SIZE, "Can't access this directory (Permission denied)", entriesStartPosition, Color.Red);
         }
 
         SDL.SetRenderClipRect(renderer.Handle, IntPtr.Zero);

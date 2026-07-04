@@ -9,5 +9,6 @@ public enum Action
     MoveDown,
     MoveUp,
     Backspace,
-    CtrlBackspace
+    CtrlBackspace,
+    ToggleConfig
 }

@@ -6,25 +6,48 @@ public static class FileTypeUtils
     
     public static void InitFileTypes()
     {
-        if (!File.Exists(DefaultApplicationsPath))
-            File.Copy(Path.Combine(App.AssetDirPath, "DefaultApplications.katzi"), DefaultApplicationsPath);
+        Dictionary<FileType, string> defaultApplications = new();
 
-        string[] lines = File.ReadAllText(DefaultApplicationsPath).Split('\n', StringSplitOptions.RemoveEmptyEntries);
-
-        if (lines.Length == 0) 
-            return;
-
-        for (int i = 0; i < lines.Length; i++)
+        if (File.Exists(DefaultApplicationsPath))
         {
-            string entry = lines[i];
-            string[] entries = entry.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string[] lines = File.ReadAllText(DefaultApplicationsPath).Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
-            if (entries.Length != 2)
-                throw new InvalidDataException($"Default applications file wasn't in a correct format; line: {i + 1}");
+            if (lines.Length == 0) 
+                return;
 
-            FileType fileType = (FileType)Enum.Parse(typeof(FileType), entries[0]);
-            DefaultApplications.Add(fileType, entries[1]);
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string entry = lines[i];
+                string[] entries = entry.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+                if (entries.Length != 2)
+                    throw new InvalidDataException($"Default applications file wasn't in a correct format; line: {i + 1}");
+
+                FileType fileType = (FileType)Enum.Parse(typeof(FileType), entries[0]);
+                defaultApplications.Add(fileType, entries[1]);
+            }
         }
+
+
+        bool rebuildConfig = false;
+        foreach (FileType fileType in Enum.GetValues<FileType>())
+        {
+            if (fileType == FileType.Unknown) 
+                continue;
+            
+            defaultApplications.TryGetValue(fileType, out string? loadedApplication);
+
+            if (loadedApplication == null)
+            {
+                DefaultApplications.Add(fileType, "Built-In");
+                rebuildConfig = true;
+            }
+            else DefaultApplications.Add(fileType, loadedApplication);
+        }
+
+        if (rebuildConfig)
+            RebuildConfig();
     }
 
     public static FileType FromExtension(string extension)
@@ -57,11 +80,23 @@ public static class FileTypeUtils
         }
 
         if (extension == ".txt" ||
-            extension == ".md")
+            extension == ".md"  ||
+            extension == ".sh"  ||
+            extension == ".bat")
         {
             return FileType.Text;
         }
 
         return FileType.Unknown;
+    }
+
+    private static void RebuildConfig()
+    {
+        using (var fs = File.Create(DefaultApplicationsPath)) { }
+            
+        foreach (var kvp in DefaultApplications)
+        {
+            File.AppendAllText(DefaultApplicationsPath, $"{kvp.Key} {kvp.Value}\n");
+        }
     }
 }
