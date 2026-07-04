@@ -26,6 +26,9 @@ public class App : Application
     public static float WindowHeight => _window.Height;
     public static Vector2 WindowBounds => _window.Bounds;
 
+    public static string AssetDirPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets");
+    public static string ConfigDirPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ls-Katzi");
+
     private static Window _window = null!;
     private static Renderer _renderer = null!;
 
@@ -54,10 +57,15 @@ public class App : Application
         CreateWindowAndRenderer("ls-Katzi", 800, 600, out _window, out _renderer);
         _window.SetWindowResizable(true);
 
-        AssetManager.SetAssetRootDirectory(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets"));
+        AssetManager.SetAssetRootDirectory(AssetDirPath);
         AssetManager.LoadFont(FONT_NAME + ".ttf");
 
         _renderer.SetVSyncEnabled(true);
+
+        if (!Directory.Exists(ConfigDirPath))
+            Directory.CreateDirectory(ConfigDirPath);
+
+        FileTypeUtils.InitFileTypes();
 
         _keybindHandler.RegisterKeybind(SDL.Keycode.E, Action.EnterDirectory, false, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.E, Action.ForceEnterDirectory, true, false);
@@ -383,7 +391,8 @@ public class App : Application
             return;
         }
 
-        string defaultApp = FileTypeUtils.DefaultApplications[fileType];
+        FileTypeUtils.DefaultApplications.TryGetValue(fileType, out string? defaultApp);
+        if (defaultApp == null) return;
 
         if (defaultApp == "Built-In")
         {

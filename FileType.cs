@@ -1,5 +1,7 @@
 public enum FileType
 {
+    Unknown,
     Image,
-    Unknown
+    CompressedArchive,
+    Text
 }
