@@ -23,7 +23,6 @@ public class ImageHandler
     public bool Update(double deltaTime)
     {
         bool needsRedraw = false;
-
         {
             if (InputHandler.ScrollWheelDelta != 0)
                 _preferredZoom += InputHandler.ScrollWheelDelta * ZoomSpeed;

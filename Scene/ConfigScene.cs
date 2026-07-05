@@ -2,12 +2,16 @@ using Color = System.Drawing.Color;
 using System.Numerics;
 using Smash.Graphics;
 using SDL3;
-using System.ComponentModel;
-using System.Text.Json.Serialization.Metadata;
+using Smash.Input;
 
 public class ConfigScene : IScene
 {
     private KeybindHandler _keybindHandler = new();
+
+    private float _scroll;
+    private float _preferredScroll;
+
+    private float _maxScroll = 0;
 
     public ConfigScene()
     {
@@ -18,12 +22,23 @@ public class ConfigScene : IScene
     {
         bool needsRedraw = false;
 
-
         Action? action = _keybindHandler.Update();
 
         if (action != null)
             PerformAction((Action)action);
 
+        if (InputHandler.ScrollWheelDelta != 0)
+        {
+            _preferredScroll -= InputHandler.ScrollWheelDelta * App.SCROLL_SPEED;
+            _preferredScroll = Math.Clamp(_preferredScroll, 0, _maxScroll);
+        }
+
+        if (_scroll != _preferredScroll)
+        {
+            _scroll = App.Lerp(_scroll, _preferredScroll, deltaTime, App.SCROLL_ANIM_SPEED, 1);
+            needsRedraw = true;
+        }
+        
         return needsRedraw;
     }
 
@@ -32,6 +47,7 @@ public class ConfigScene : IScene
         Font font = AssetManager.Get<Font>(App.FONT_NAME);
 
         Vector2 basePosition = new Vector2(App.PADDING);
+        basePosition.Y -= _scroll;
 
         string defaultApplicationsText = "Default Applications";
         renderer.RenderText(font, App.BIG_POINT_SIZE, defaultApplicationsText, basePosition, Color.White);
@@ -48,9 +64,6 @@ public class ConfigScene : IScene
         for (int i = 0; i < fileTypes.Length; i++)
         {
             FileType fileType = fileTypes[i];
-
-            //if (fileType == FileType.Unknown)
-                //continue;
 
             Vector2 fileTypePosition = basePosition + new Vector2(0, i * App.ENTRY_SPACING);
             Vector2 defaultAppPosition = fileTypePosition + new Vector2(App.WindowWidth / 3, 0);
@@ -97,6 +110,9 @@ public class ConfigScene : IScene
 
             yOffset += App.PADDING;
         }
+
+        if (_maxScroll == 0)
+            _maxScroll = basePosition.Y;
     }
 
     public void PerformAction(Action action)
