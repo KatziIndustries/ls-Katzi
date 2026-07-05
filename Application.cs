@@ -39,11 +39,13 @@ public class App : Application
     {
         CreateWindowAndRenderer("ls-Katzi", 800, 600, out _window, out _renderer);
         _window.SetWindowResizable(true);
+        SDL.SetWindowBordered(_window.Handle, false);
 
         AssetManager.SetAssetRootDirectory(AssetDirPath);
         AssetManager.LoadFont(FONT_NAME + ".ttf");
 
         _renderer.SetVSyncEnabled(true);
+        _renderer.SetRenderBlendMode(BlendMode.Blend);
 
         if (!Directory.Exists(ConfigDirPath))
             Directory.CreateDirectory(ConfigDirPath);

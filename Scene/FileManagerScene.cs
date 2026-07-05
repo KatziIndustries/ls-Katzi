@@ -24,6 +24,7 @@ public class FileManagerScene : IScene
     private bool _showHiddenFiles = false;
     private bool _pathPermissionDenied = false;
 
+    private BookmarkHandler _bookmarkHandler = new();
 
     public FileManagerScene()
     {
@@ -38,6 +39,7 @@ public class FileManagerScene : IScene
         _keybindHandler.RegisterKeybind(SDL.Keycode.Backspace, Action.CtrlBackspace, true, true);
         _keybindHandler.RegisterKeybind(SDL.Keycode.Comma, Action.ToggleConfig , true, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.H, Action.ToggleShowHiddenFiles , true, false);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.D, Action.ToggleBookmarks , true, false);
 
         _currentPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + Path.DirectorySeparatorChar;
         RefreshSystemEntries();
@@ -59,24 +61,31 @@ public class FileManagerScene : IScene
             needsRedraw = true;
         }
 
-        if (_imageHandler.Update(deltaTime))
-            needsRedraw = true;
-
-
-        if (InputHandler.TextInput != null && InputHandler.TextInput != string.Empty && _selectedEntry == -1)
+        if (!_bookmarkHandler.Active || _bookmarkHandler.Closing)
         {
-            UpdatePath(_currentPath + InputHandler.TextInput);
-            needsRedraw = true;
+            if (_imageHandler.Update(deltaTime))
+                needsRedraw = true;
 
-            RefreshSystemEntries();
+            if (InputHandler.TextInput != null && InputHandler.TextInput != string.Empty && _selectedEntry == -1)
+            {
+                UpdatePath(_currentPath + InputHandler.TextInput);
+                needsRedraw = true;
+
+                RefreshSystemEntries();
+            }
+
+            Action? action = _keybindHandler.Update();
+            if (action != null)
+            {
+                PerformAction((Action)action);
+                needsRedraw = true;
+            }
         }
 
-
-        Action? action = _keybindHandler.Update();
-        if (action != null)
+        if (_bookmarkHandler.Active || _bookmarkHandler.Closing)
         {
-            PerformAction((Action)action);
-            needsRedraw = true;
+            if (_bookmarkHandler.Update(deltaTime))
+                needsRedraw = true;
         }
 
         return needsRedraw;
@@ -112,6 +121,17 @@ public class FileManagerScene : IScene
 
         if (shouldDeleteImage)
             _imageHandler.DisposeImage();
+
+        if (_bookmarkHandler.Active)
+        {
+            if (!_bookmarkHandler.Closing)
+            {
+                Rectangle overlayRectangle = new(0, 0, App.WindowWidth, App.WindowHeight);
+                renderer.RenderFilledRectangle(overlayRectangle, Color.FromArgb(125, 0, 0, 0));
+            }
+
+            _bookmarkHandler.Render(renderer);
+        }
     }
 
     private void RenderFile(Renderer renderer)
@@ -271,6 +291,11 @@ public class FileManagerScene : IScene
             _showHiddenFiles = !_showHiddenFiles;
             RefreshSystemEntries();
             _selectedEntry = 0;
+        }
+
+        if (action == Action.ToggleBookmarks)
+        {
+            _bookmarkHandler.Toggle();
         }
     }
 

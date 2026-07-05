@@ -11,5 +11,6 @@ public enum Action
     Backspace,
     CtrlBackspace,
     ToggleConfig,
-    ToggleShowHiddenFiles
+    ToggleShowHiddenFiles,
+    ToggleBookmarks
 }
