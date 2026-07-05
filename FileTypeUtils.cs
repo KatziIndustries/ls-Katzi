@@ -19,13 +19,14 @@ public static class FileTypeUtils
             for (int i = 0; i < lines.Length; i++)
             {
                 string entry = lines[i];
-                string[] entries = entry.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-                if (entries.Length != 2)
-                    throw new InvalidDataException($"Default applications file wasn't in a correct format; line: {i + 1}");
+                int firstSpace = entry.IndexOf(' ');
+                string fileTypeString = entry.Substring(0, firstSpace);
 
-                FileType fileType = (FileType)Enum.Parse(typeof(FileType), entries[0]);
-                defaultApplications.Add(fileType, entries[1]);
+                string defaultApplication = entry.Substring(firstSpace + 1, entry.Length - firstSpace - 1);
+
+                FileType fileType = (FileType)Enum.Parse(typeof(FileType), fileTypeString);
+                defaultApplications.Add(fileType, defaultApplication);
             }
         }
 
