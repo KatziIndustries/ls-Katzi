@@ -4,61 +4,40 @@ public class SceneManager
 {
     public bool NeedsRedraw { get; private set; } = false;
 
-    private Dictionary<Scenes, Scene> _scenes = new();
+    private List<IScene> _scenes = new()
+    {
+        new FileManagerScene(),
+        new ConfigScene()
+    };
 
-    private Scenes _currentScene = Scenes.FileManager;
+    private IScene? _currentScene;
+
+    public SceneManager()
+    {
+        SetScene<FileManagerScene>();
+    }
 
     public bool Update(double deltaTime)
     {
-        _scenes.TryGetValue(_currentScene, out Scene? cachedScene);
+        if (_currentScene == null)
+            return false;
 
-        if (cachedScene == null)
-        {
-            Scene scene = CreateScene(_currentScene);
-            _scenes.Add(_currentScene, scene);
-
-            return scene.Update(deltaTime);
-        }
-        else
-        {
-            return cachedScene.Update(deltaTime);
-        }
+        return _currentScene.Update(deltaTime);
     }
 
     public void Render(Renderer renderer)
     {
-        _scenes.TryGetValue(_currentScene, out Scene? cachedScene);
+        if (_currentScene == null)
+            return;
 
-        if (cachedScene == null)
-        {
-            Scene scene = CreateScene(_currentScene);
-            _scenes.Add(_currentScene, scene);
-
-            scene.Render(renderer);
-        }
-        else
-        {
-            cachedScene.Render(renderer);
-        }
+        _currentScene.Render(renderer);
     }
 
-    public void SetScene(Scenes scene)
+    public void SetScene<T>() where T : IScene
     {
+        IScene? scene = _scenes.FirstOrDefault(f => f.GetType() == typeof(T));
+
         _currentScene = scene;
         NeedsRedraw = true;
-    }
-
-    private Scene CreateScene(Scenes scene)
-    {
-        switch (scene)
-        {
-            case Scenes.FileManager:
-                return new FileManagerScene();
-
-            case Scenes.Config:
-                return new ConfigScene();
-        }
-
-        return null!;
     }
 }

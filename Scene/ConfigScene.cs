@@ -2,9 +2,8 @@ using Color = System.Drawing.Color;
 using System.Numerics;
 using Smash.Graphics;
 using SDL3;
-using System.Threading.Tasks.Dataflow;
 
-public class ConfigScene : Scene
+public class ConfigScene : IScene
 {
     private KeybindHandler _keybindHandler = new();
 
@@ -13,7 +12,7 @@ public class ConfigScene : Scene
         _keybindHandler.RegisterKeybind(SDL.Keycode.Comma, Action.ToggleConfig, true, false);
     }
 
-    public override bool Update(double deltaTime)
+    public bool Update(double deltaTime)
     {
         bool needsRedraw = false;
 
@@ -26,7 +25,7 @@ public class ConfigScene : Scene
         return needsRedraw;
     }
 
-    public override void Render(Renderer renderer)
+    public void Render(Renderer renderer)
     {
         Font font = AssetManager.Get<Font>(App.FONT_NAME);
 
@@ -64,11 +63,11 @@ public class ConfigScene : Scene
         }
     }
 
-    public override void PerformAction(Action action)
+    public void PerformAction(Action action)
     {
         if (action == Action.ToggleConfig)
         {
-            App.SetScene(Scenes.FileManager);
+            App.SetScene<FileManagerScene>();
         }
     }
 }

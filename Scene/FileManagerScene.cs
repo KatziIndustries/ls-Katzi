@@ -6,7 +6,7 @@ using Smash;
 using Smash.Input;
 using System.Diagnostics;
 
-public class FileManagerScene : Scene
+public class FileManagerScene : IScene
 {
     public Color PathColor => _selectedEntry == -1 ? Color.FromArgb(50, 50, 50) : Color.FromArgb(28, 28, 28);
 
@@ -28,9 +28,7 @@ public class FileManagerScene : Scene
     public FileManagerScene()
     {
         _keybindHandler.RegisterKeybind(SDL.Keycode.E, Action.EnterDirectory, false, false);
-        _keybindHandler.RegisterKeybind(SDL.Keycode.E, Action.ForceEnterDirectory, true, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.B, Action.EnterParentDirectory, false, false);
-        _keybindHandler.RegisterKeybind(SDL.Keycode.B, Action.ForceEnterParentDirectory, true, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.Tab, Action.ForceEnterDirectory, false, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.Escape, Action.LeaveSearchBar, false, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.K, Action.EnterSearchBar, true, true);
@@ -45,7 +43,7 @@ public class FileManagerScene : Scene
         RefreshSystemEntries();
     }
 
-    public override bool Update(double deltaTime)
+    public bool Update(double deltaTime)
     {
         bool needsRedraw = false;
 
@@ -84,7 +82,7 @@ public class FileManagerScene : Scene
         return needsRedraw;
     }
 
-    public override void Render(Renderer renderer)
+    public void Render(Renderer renderer)
     {
         Font font = AssetManager.Get<Font>(App.FONT_NAME);
 
@@ -163,7 +161,7 @@ public class FileManagerScene : Scene
         SDL.SetRenderClipRect(renderer.Handle, IntPtr.Zero);
     }
 
-    public override void PerformAction(Action action)
+    public void PerformAction(Action action)
     {
         if (action == Action.EnterDirectory)
         {
@@ -185,7 +183,7 @@ public class FileManagerScene : Scene
             return;
         }
 
-        if ((action == Action.EnterParentDirectory && _selectedEntry != -1) || (action == Action.ForceEnterParentDirectory && _selectedEntry == -1))
+        if (action == Action.EnterParentDirectory && _selectedEntry != -1)
         {
             string parentDir = GetParentDirectory();
             string oldPath = _currentPath;
@@ -265,7 +263,7 @@ public class FileManagerScene : Scene
 
         if (action == Action.ToggleConfig)
         {
-            App.SetScene(Scenes.Config);
+            App.SetScene<ConfigScene>();
         }
 
         if (action == Action.ToggleShowHiddenFiles)

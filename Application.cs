@@ -1,4 +1,5 @@
 using System.Numerics;
+using SDL3;
 using Smash;
 using Smash.Graphics;
 using Color = System.Drawing.Color;
@@ -96,9 +97,9 @@ public class App : Application
         return SDL3.Image.LoadTexture(_renderer.Handle, entry);
     }
 
-    public static void SetScene(Scenes scene)
+    public static void SetScene<T>() where T : IScene
     {
-        _sceneManager.SetScene(scene);
+        _sceneManager.SetScene<T>();
     }
 
     public override void End() 
