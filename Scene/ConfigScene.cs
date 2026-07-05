@@ -97,12 +97,12 @@ public class ConfigScene : IScene
             FileType fileType = kvp.Key;
             List<string> extensions = kvp.Value;
 
-            Vector2 fileTypePosition = basePosition + new Vector2(0, i * App.ENTRY_SPACING + yOffset);
+            Vector2 fileTypePosition = Vector2.Round(basePosition + new Vector2(0, i * App.ENTRY_SPACING + yOffset));
             renderer.RenderText(font, App.MEDIUM_POINT_SIZE, Enum.GetName(fileType)!, fileTypePosition, Color.White);
 
             for (int j = 0; j < extensions.Count; j++)
             {
-                Vector2 extensionPosition = fileTypePosition + new Vector2(0, (j + 1) * App.ENTRY_SPACING);
+                Vector2 extensionPosition = fileTypePosition + Vector2.Round(new Vector2(0, (j + 1) * App.ENTRY_SPACING));
                 renderer.RenderText(font, App.POINT_SIZE, $"""- "{extensions[j]}" """, extensionPosition, Color.White);
 
                 yOffset += App.ENTRY_SPACING;
@@ -110,6 +110,9 @@ public class ConfigScene : IScene
 
             yOffset += App.PADDING;
         }
+
+        basePosition.Y += yOffset;
+        basePosition.Y -= App.WindowHeight / 2;
 
         if (_maxScroll == 0)
             _maxScroll = basePosition.Y;
