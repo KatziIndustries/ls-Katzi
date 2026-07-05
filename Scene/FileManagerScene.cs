@@ -339,7 +339,7 @@ public class FileManagerScene : IScene
 
     private void OpenFileType(string entry, string extension)
     {
-        FileType fileType = FileTypeUtils.FromExtension(extension, entry);
+        FileType fileType = FileTypeUtils.FromExtension(extension);
 
         if (fileType == FileType.Unknown)
         {

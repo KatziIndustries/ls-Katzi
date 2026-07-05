@@ -1,10 +1,20 @@
 public static class FileTypeUtils
 {
     public static string DefaultApplicationsPath => Path.Combine(App.ConfigDirPath, "DefaultApplications.katzi");
+    public static string FileTypeExtensionsPath => Path.Combine(App.ConfigDirPath, "FileTypeExtensions.katzi");
 
     public static readonly Dictionary<FileType, string> DefaultApplications = new();
+    public static readonly Dictionary<string, FileType> FileTypeExtensions = new();
+
+    public static readonly Dictionary<FileType, List<string>> ExtensionsFromFileType = new();
     
-    public static void InitFileTypes()
+    public static void Init()
+    {
+        InitFileTypeExtensions();
+        InitDefaultApplications();
+    }
+
+    private static void InitDefaultApplications()
     {
         Dictionary<FileType, string> defaultApplications = new();
 
@@ -48,63 +58,52 @@ public static class FileTypeUtils
         }
 
         if (rebuildConfig)
-            RebuildConfig();
+            RebuildDefaultApplications();
     }
 
-    public static FileType FromExtension(string extension, string entry)
+    private static void InitFileTypeExtensions()
     {
-        if (extension == ".jpeg" ||
-            extension == ".jpg"  ||
-            extension == ".png"  ||
-            extension == ".gif"  ||
-            extension == ".webp" ||
-            extension == ".avif" ||
-            extension == ".tiff" ||
-            extension == ".bmp"  ||
-            extension == ".ppm"  ||
-            extension == ".pgm"  ||
-            extension == ".pbm"  ||
-            extension == ".pnm")
+        if (!File.Exists(FileTypeExtensionsPath))
+            File.Copy(Path.Combine(App.AssetDirPath, "FileTypeExtensions.katzi"), FileTypeExtensionsPath);
+
+        string[] lines = File.ReadAllText(FileTypeExtensionsPath).Split('\n');
+
+        FileType currentFileType = FileType.Unknown;
+        ExtensionsFromFileType.Add(FileType.Unknown, new());
+
+        for (int i = 0; i < lines.Length; i++)
         {
-            return FileType.Image;
+            if (lines[i].StartsWith('-'))
+            {
+                string extension = lines[i][1..lines[i].Length];
+                FileTypeExtensions.Add(extension, currentFileType);
+
+                ExtensionsFromFileType[currentFileType].Add(extension);
+            }
+            else
+            {
+                if (Enum.TryParse(lines[i], false, out FileType fileType))
+                {
+                    currentFileType = fileType;
+                    ExtensionsFromFileType.Add(fileType, new());
+                }
+            }
         }
-
-        if (extension == ".zip" ||
-            extension == ".gz"  ||
-            extension == ".bz2" ||
-            extension == ".xz"  ||
-            extension == ".tar" ||
-            extension == ".z"   ||
-            extension == ".7z")
-        {
-            return FileType.CompressedArchive;
-        }
-
-        if (extension == ".txt" ||
-            extension == ".md"  ||
-            extension == ".sh"  ||
-            extension == ".bat")
-        {
-            return FileType.Text;
-        }
-
-        if (extension == ".exe" && OperatingSystem.IsWindows())
-        {
-            return FileType.Executable;
-        }
-
-        if (OperatingSystem.IsLinux())
-        {
-            UnixFileMode fileMode = File.GetUnixFileMode(entry);
-
-            if (fileMode.HasFlag(UnixFileMode.UserExecute))
-                return FileType.Executable;
-        }
-
-        return FileType.Unknown;
     }
 
-    private static void RebuildConfig()
+    public static FileType FromExtension(string extension)
+    {
+        if (FileTypeExtensions.TryGetValue(extension, out FileType fileType))
+        {
+            return fileType;
+        }
+        else
+        {
+            return FileType.Unknown;
+        }
+    }
+
+    private static void RebuildDefaultApplications()
     {
         using (var fs = File.Create(DefaultApplicationsPath)) { }
             

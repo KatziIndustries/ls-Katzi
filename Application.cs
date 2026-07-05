@@ -11,6 +11,7 @@ public class App : Application
 
     public const string FONT_NAME = "Rubik-Regular";
     public const int BIG_POINT_SIZE = 34;
+    public const int MEDIUM_POINT_SIZE = 30;
     public const int POINT_SIZE = 25;
     
     public const int ENTRY_SPACING = 45;
@@ -50,7 +51,7 @@ public class App : Application
         if (!Directory.Exists(ConfigDirPath))
             Directory.CreateDirectory(ConfigDirPath);
 
-        FileTypeUtils.InitFileTypes();
+        FileTypeUtils.Init();
     }
 
     public override void Update(double deltaTime) 
