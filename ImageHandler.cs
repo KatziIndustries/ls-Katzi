@@ -78,7 +78,7 @@ public class ImageHandler
     {
         _texture = texture;
 
-        float zoom = Math.Max(App.WindowWidth, App.WindowHeight) / (Math.Max(_texture.Width, _texture.Height) * 2.5f);
+        float zoom = Math.Max(App.WindowWidth, App.WindowHeight) / (Math.Max(_texture.Width, _texture.Height) * 2f);
         _zoom = zoom;
         _preferredZoom = zoom;
     }

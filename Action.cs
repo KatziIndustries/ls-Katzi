@@ -10,5 +10,6 @@ public enum Action
     MoveUp,
     Backspace,
     CtrlBackspace,
-    ToggleConfig
+    ToggleConfig,
+    ToggleShowHiddenFiles
 }

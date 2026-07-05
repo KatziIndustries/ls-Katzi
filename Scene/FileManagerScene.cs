@@ -39,6 +39,7 @@ public class FileManagerScene : Scene
         _keybindHandler.RegisterKeybind(SDL.Keycode.Backspace, Action.Backspace, false, true);
         _keybindHandler.RegisterKeybind(SDL.Keycode.Backspace, Action.CtrlBackspace, true, true);
         _keybindHandler.RegisterKeybind(SDL.Keycode.Comma, Action.ToggleConfig , true, false);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.H, Action.ToggleShowHiddenFiles , true, false);
 
         _currentPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + Path.DirectorySeparatorChar;
         RefreshSystemEntries();
@@ -266,6 +267,13 @@ public class FileManagerScene : Scene
         {
             App.SetScene(Scenes.Config);
         }
+
+        if (action == Action.ToggleShowHiddenFiles)
+        {
+            _showHiddenFiles = !_showHiddenFiles;
+            RefreshSystemEntries();
+            _selectedEntry = 0;
+        }
     }
 
     private string GetParentDirectory()
@@ -444,7 +452,7 @@ public class FileManagerScene : Scene
             _preferredScroll = 0;
             _systemEntries = [];
             _pathPermissionDenied = true;
-            _selectedEntry = -1;
+            _selectedEntry = 0;
             return true; 
         }
 
