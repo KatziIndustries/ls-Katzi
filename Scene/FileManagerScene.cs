@@ -15,6 +15,7 @@ public class FileManagerScene : IScene
 
     private string _currentPath;
     private string[] _systemEntries = [];
+    private Dictionary<string, FileInfo> _fileInfo = new();
 
     private int _selectedEntry = -1;
 
@@ -171,6 +172,12 @@ public class FileManagerScene : IScene
 
                 bool isDirectory = Directory.Exists(_systemEntries[i]);
                 renderer.RenderText(font, App.POINT_SIZE, Path.GetFileName(_systemEntries[i]), position, isDirectory ? Color.RoyalBlue : Color.White);
+
+                if (_fileInfo.TryGetValue(_systemEntries[i], out FileInfo? fileInfo))
+                {
+                    Vector2 fileInfoPosition = position + new Vector2(App.WindowWidth / 2, 0);
+                    renderer.RenderText(font, App.POINT_SIZE, GetFileLengthReadable(fileInfo.Length), fileInfoPosition, Color.White);
+                }
             }
         }
         else
@@ -440,6 +447,18 @@ public class FileManagerScene : IScene
         }
     }
 
+    string[] _sizes = { "B", "KB", "MB", "GB", "TB" };
+    private string GetFileLengthReadable(long length)
+    {
+        int order = 0;
+        while (length >= 1024 && order < _sizes.Length - 1) {
+            order++;
+            length = length / 1024;
+        }
+
+        return String.Format("{0:0.##} {1}", length, _sizes[order]);
+    }
+
     private bool RefreshSystemEntries()
     {
         string[] newEntries;
@@ -490,10 +509,24 @@ public class FileManagerScene : IScene
             _scroll = 0;
             _preferredScroll = 0;
             _systemEntries = newEntries;
+            GetFileInfos(newEntries);
             return true;
         }
     }
 
+    private void GetFileInfos(string[] entries)
+    {
+        foreach (string entry in entries)
+        {
+            if (Directory.Exists(entry)) 
+                continue;
+
+            if (!_fileInfo.ContainsKey(entry))
+            {
+                _fileInfo.Add(entry, new FileInfo(entry));
+            }
+        }
+    }
 
     private float GetMinScroll(int numSysEntries)
     {
