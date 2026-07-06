@@ -12,7 +12,7 @@ public class BookmarkHandler
     
     private static Color _backgroundColor = Color.FromArgb(30, 30, 30);
 
-    private const float MIN_OPENED_TIME = 0.01f;
+    private const float MIN_OPENED_TIME = 0.02f;
 
     private float _width = 0;
 
@@ -118,9 +118,7 @@ public class BookmarkHandler
         {
             case Action.ToggleBookmarks:
                 if (_openedTime > MIN_OPENED_TIME)
-                {
                     Close();
-                }
                 break;
 
             case Action.MoveDown:  

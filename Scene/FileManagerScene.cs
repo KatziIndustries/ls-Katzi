@@ -91,6 +91,7 @@ public class FileManagerScene : IScene
             if (path != null)
             {
                 UpdatePath(path);
+                _selectedEntry = 0;
                 _bookmarkHandler.Close();
             }
 
