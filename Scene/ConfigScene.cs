@@ -28,7 +28,7 @@ public class ConfigScene : IScene
                 File.WriteAllText(DefaultTerminalPath, "cmd.exe");
         }
         
-        DefaultTerminal = File.ReadAllText(DefaultTerminalPath);
+        DefaultTerminal = File.ReadAllText(DefaultTerminalPath).Trim();
 
         _keybindHandler.RegisterKeybind(SDL.Keycode.Comma, Action.ToggleConfig, true, false);
     }

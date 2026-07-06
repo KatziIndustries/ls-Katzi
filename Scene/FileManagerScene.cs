@@ -41,6 +41,7 @@ public class FileManagerScene : IScene
         _keybindHandler.RegisterKeybind(SDL.Keycode.Comma, Action.ToggleConfig , true, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.H, Action.ToggleShowHiddenFiles , true, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.D, Action.ToggleBookmarks , true, false);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.T, Action.OpenTerminal , true, false);
 
         _currentPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + Path.DirectorySeparatorChar;
         RefreshSystemEntries();
@@ -306,6 +307,19 @@ public class FileManagerScene : IScene
         if (action == Action.ToggleBookmarks)
         {
             _bookmarkHandler.Toggle();
+        }
+
+        if (action == Action.OpenTerminal)
+        {
+            string defaultTerminal = ConfigScene.DefaultTerminal;
+            ProcessStartInfo processStartInfo = new()
+            {
+                FileName = defaultTerminal,
+                Arguments = $"--directory {_currentPath}",
+                UseShellExecute = false
+            };
+
+            Process.Start(processStartInfo);
         }
     }
 
