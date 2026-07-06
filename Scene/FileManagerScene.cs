@@ -447,16 +447,22 @@ public class FileManagerScene : IScene
         }
     }
 
-    string[] _sizes = { "B", "KB", "MB", "GB", "TB" };
+    private readonly string[] _sizes = { "B", "KB", "MB", "GB", "TB" };
     private string GetFileLengthReadable(long length)
     {
+        double size = length;
         int order = 0;
-        while (length >= 1024 && order < _sizes.Length - 1) {
+
+        while (size >= 1024 && order < _sizes.Length - 1)
+        {
             order++;
-            length = length / 1024;
+            size /= 1024;
         }
 
-        return String.Format("{0:0.##} {1}", length, _sizes[order]);
+        if (_sizes[order] == "B")
+            return $"{size:0} {_sizes[order]}";
+        else
+            return $"{size:0.0} {_sizes[order]}";
     }
 
     private bool RefreshSystemEntries()
