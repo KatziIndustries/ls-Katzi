@@ -173,10 +173,13 @@ public class FileManagerScene : IScene
                 bool isDirectory = Directory.Exists(_systemEntries[i]);
                 renderer.RenderText(font, App.POINT_SIZE, Path.GetFileName(_systemEntries[i]), position, isDirectory ? Color.RoyalBlue : Color.White);
 
-                if (_fileInfo.TryGetValue(_systemEntries[i], out FileInfo? fileInfo))
+                if (!isDirectory)
                 {
-                    Vector2 fileInfoPosition = position + new Vector2(App.WindowWidth / 2, 0);
-                    renderer.RenderText(font, App.POINT_SIZE, GetFileLengthReadable(fileInfo.Length), fileInfoPosition, Color.White);
+                    if (_fileInfo.TryGetValue(_systemEntries[i], out FileInfo? fileInfo))
+                    {
+                        Vector2 fileInfoPosition = position + new Vector2(App.WindowWidth / 2, 0);
+                        renderer.RenderText(font, App.POINT_SIZE, GetFileLengthReadable(fileInfo.Length), fileInfoPosition, Color.White);
+                    }
                 }
             }
         }

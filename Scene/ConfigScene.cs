@@ -6,6 +6,9 @@ using Smash.Input;
 
 public class ConfigScene : IScene
 {
+    public static string DefaultTerminalPath => Path.Combine(App.ConfigDirPath, "DefaultTerminal.katzi");
+    public static string DefaultTerminal { get; private set; } = null!;
+
     private KeybindHandler _keybindHandler = new();
 
     private float _scroll;
@@ -15,6 +18,18 @@ public class ConfigScene : IScene
 
     public ConfigScene()
     {
+        if (!File.Exists(DefaultTerminalPath))
+        {
+            using (var fs = File.Create(DefaultTerminalPath)) { }
+
+            if (OperatingSystem.IsLinux())
+                File.WriteAllText(DefaultTerminalPath, "kitty");
+            else if (OperatingSystem.IsWindows())
+                File.WriteAllText(DefaultTerminalPath, "cmd.exe");
+        }
+        
+        DefaultTerminal = File.ReadAllText(DefaultTerminalPath);
+
         _keybindHandler.RegisterKeybind(SDL.Keycode.Comma, Action.ToggleConfig, true, false);
     }
 
@@ -49,17 +64,9 @@ public class ConfigScene : IScene
         Vector2 basePosition = new Vector2(App.PADDING);
         basePosition.Y -= _scroll;
 
-        string defaultApplicationsText = "Default Applications";
-        renderer.RenderText(font, App.BIG_POINT_SIZE, defaultApplicationsText, basePosition, Color.White);
-
-        Vector2 defaultApplicationsTextSize = font.MeasureString(defaultApplicationsText, App.BIG_POINT_SIZE);
-
-        basePosition.Y += defaultApplicationsTextSize.Y + App.PADDING;
-
-        renderer.RenderLine(basePosition with { X = 0 }, basePosition with { X = App.WindowWidth}, App.ForegroundColor);
-
-        basePosition.Y += App.PADDING;
-
+        //Default applications
+        basePosition = RenderHeader(renderer, basePosition, "Default Applications", font);
+        
         FileType[] fileTypes = Enum.GetValues<FileType>();
         for (int i = 0; i < fileTypes.Length; i++)
         {
@@ -79,17 +86,16 @@ public class ConfigScene : IScene
 
         basePosition.Y += fileTypes.Length * App.ENTRY_SPACING + App.PADDING * 2;
 
-        string fileExtensionsText = "File Extensions";
-        renderer.RenderText(font, App.BIG_POINT_SIZE, fileExtensionsText, basePosition, Color.White);
+        //Default Terminal
+        basePosition = RenderHeader(renderer, basePosition, "Default Terminal", font);
 
-        Vector2 fileExtensionsTextSize = font.MeasureString(fileExtensionsText, App.BIG_POINT_SIZE);
+        renderer.RenderText(font, App.POINT_SIZE, DefaultTerminal, basePosition, Color.White);
 
-        basePosition.Y += fileExtensionsTextSize.Y + App.PADDING;
-
-        renderer.RenderLine(basePosition with { X = 0 }, basePosition with { X = App.WindowWidth}, App.ForegroundColor);
-
-        basePosition.Y += App.PADDING;
-
+        basePosition.Y += App.POINT_SIZE + App.PADDING * 2;
+        
+        // File extensions
+        basePosition = RenderHeader(renderer, basePosition, "File Extensions", font);
+    
         float yOffset = 0;
         for (int i = 0; i < FileTypeUtils.ExtensionsFromFileType.Count; i++)
         {
@@ -116,6 +122,21 @@ public class ConfigScene : IScene
 
         if (_maxScroll == 0)
             _maxScroll = basePosition.Y;
+    }
+
+    private Vector2 RenderHeader(Renderer renderer, Vector2 basePosition, string header, Font font)
+    {
+        renderer.RenderText(font, App.BIG_POINT_SIZE, header, basePosition, Color.White);
+
+        Vector2 headerTextSize = font.MeasureString(header, App.BIG_POINT_SIZE);
+
+        basePosition.Y += headerTextSize.Y + App.PADDING;
+
+        renderer.RenderLine(basePosition with { X = 0 }, basePosition with { X = App.WindowWidth}, App.ForegroundColor);
+
+        basePosition.Y += App.PADDING;
+
+        return basePosition;
     }
 
     public void PerformAction(Action action)
