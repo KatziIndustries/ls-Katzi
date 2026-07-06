@@ -1,6 +1,6 @@
 public enum Action
 {
-    EnterDirectory,
+    Enter,
     ForceEnterDirectory,
     EnterParentDirectory,
     ForceEnterParentDirectory,

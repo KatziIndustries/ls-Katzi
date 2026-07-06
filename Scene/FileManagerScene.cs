@@ -29,7 +29,7 @@ public class FileManagerScene : IScene
 
     public FileManagerScene()
     {
-        _keybindHandler.RegisterKeybind(SDL.Keycode.E, Action.EnterDirectory, false, false);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.E, Action.Enter, false, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.B, Action.EnterParentDirectory, false, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.Tab, Action.ForceEnterDirectory, false, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.Escape, Action.LeaveSearchBar, false, false);
@@ -86,7 +86,15 @@ public class FileManagerScene : IScene
 
         if (_bookmarkHandler.Active || _bookmarkHandler.Closing)
         {
-            if (_bookmarkHandler.Update(deltaTime))
+            (bool bookmarkNeedsRedraw, string? path) = _bookmarkHandler.Update(deltaTime);
+            
+            if (path != null)
+            {
+                UpdatePath(path);
+                _bookmarkHandler.Close();
+            }
+
+            if (bookmarkNeedsRedraw)
                 needsRedraw = true;
         }
 
@@ -124,7 +132,7 @@ public class FileManagerScene : IScene
         if (shouldDeleteImage)
             _imageHandler.DisposeImage();
 
-        if (_bookmarkHandler.Active)
+        if (_bookmarkHandler.Active || _bookmarkHandler.Closing)
         {
             if (!_bookmarkHandler.Closing)
             {
@@ -194,7 +202,7 @@ public class FileManagerScene : IScene
 
     public void PerformAction(Action action)
     {
-        if (action == Action.EnterDirectory)
+        if (action == Action.Enter)
         {
             if (_selectedEntry != -1 && _selectedEntry < _systemEntries.Length)
             {
