@@ -9,6 +9,8 @@ public class App : Application
     public static readonly Color BackgroundColor = Color.FromArgb(25, 25, 25);
     public static readonly Color ForegroundColor = Color.FromArgb(50, 50, 50);
 
+    public static string? InitialDirectory { get; private set; }
+
     public const string FONT_NAME = "Rubik-Regular";
     public const int BIG_POINT_SIZE = 34;
     public const int MEDIUM_POINT_SIZE = 30;
@@ -34,13 +36,15 @@ public class App : Application
 
     private Vector2 _lastWindowBounds;
 
-    private static SceneManager _sceneManager = new();
+    private static SceneManager _sceneManager = null!;
 
-    public App() 
+    public App(string? initialDirectory)
     {
         CreateWindowAndRenderer("ls-Katzi", 800, 600, out _window, out _renderer);
         _window.SetWindowResizable(true);
         SDL.SetWindowBordered(_window.Handle, false);
+
+        InitialDirectory = initialDirectory;
 
         AssetManager.SetAssetRootDirectory(AssetDirPath);
         AssetManager.LoadFont(FONT_NAME + ".ttf");
@@ -52,6 +56,8 @@ public class App : Application
             Directory.CreateDirectory(ConfigDirPath);
 
         FileTypeUtils.Init();
+
+        _sceneManager = new();
     }
 
     public override void Update(double deltaTime) 

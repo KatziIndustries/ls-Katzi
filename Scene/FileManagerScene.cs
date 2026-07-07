@@ -43,7 +43,20 @@ public class FileManagerScene : IScene
         _keybindHandler.RegisterKeybind(SDL.Keycode.D, Action.ToggleBookmarks , true, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.T, Action.OpenTerminal , true, false);
 
-        _currentPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + Path.DirectorySeparatorChar;
+        if (App.InitialDirectory != null)
+        {
+            _currentPath = App.InitialDirectory;
+            if (File.Exists(_currentPath))
+            {
+                _systemEntries = [_currentPath];
+                OpenFile(0);
+            }
+        }
+        else
+        {
+            _currentPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + Path.DirectorySeparatorChar;
+        }
+
         RefreshSystemEntries();
     }
 

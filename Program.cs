@@ -14,7 +14,27 @@ internal static class Program
     {
         SmashEngine.Init();
 
-        App application = new App();
+        string? initialDirectory = null;
+        if (args.Length == 1)
+        {
+            initialDirectory = args[0];
+        }
+        else if (args.Length > 1)
+        {
+            throw new ArgumentException($"Expected one or zero arguments but got {args.Length}");
+        }
+
+        if (initialDirectory != null)
+        {
+            string fullPath = Path.GetFullPath(initialDirectory);
+
+            if (Directory.Exists(fullPath))
+                fullPath += Path.DirectorySeparatorChar;
+
+            initialDirectory = fullPath;
+        }
+
+        App application = new App(initialDirectory);
         application.Start();
         application.Render();
 
