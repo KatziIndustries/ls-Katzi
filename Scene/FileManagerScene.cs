@@ -442,7 +442,7 @@ public class FileManagerScene : IScene
                     _selectedEntry = 0;
 
                 Texture2D texture = new Texture2D(textureHandle, "");
-                SDL.SetTextureScaleMode(texture.Handle, SDL.ScaleMode.Nearest);
+                SDL.SetTextureScaleMode(texture.Handle, SDL.ScaleMode.Linear);
                 
                 _imageHandler.SetImage(texture);
                 return; 
