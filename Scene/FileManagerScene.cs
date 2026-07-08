@@ -8,12 +8,14 @@ using System.Diagnostics;
 
 public class FileManagerScene : IScene
 {
+    public static string CurrentPath => _currentPath;
+
     public Color PathColor => _selectedEntry == -1 ? Color.FromArgb(50, 50, 50) : Color.FromArgb(28, 28, 28);
 
     private ImageHandler _imageHandler = new();
     private KeybindHandler _keybindHandler = new();
 
-    private string _currentPath;
+    private static string _currentPath = null!;
     private string[] _systemEntries = [];
     private Dictionary<string, FileInfo> _fileInfo = new();
 
