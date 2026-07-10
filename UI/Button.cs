@@ -11,10 +11,12 @@ public class Button : IUIElement
 
     public bool Selected = false;
 
-    private readonly Color _backgroundColor;
-    private readonly Color _selectedColor;
+    public string? Text => _textElement?.Text;
 
-    private readonly TextElement? _textElement;
+    protected private Color _backgroundColor { get; init; }
+    protected private Color _selectedColor { get; init; }
+
+    protected private TextElement? _textElement { get; init; }
 
     public Button(float width, float height, float padding, Color backgroundColor, Color selectedColor, TextElement? textElement = null)
     {
@@ -26,7 +28,17 @@ public class Button : IUIElement
         _textElement = textElement;
     }
 
-    public float Render(Renderer renderer, Vector2 position, UIContext context)
+    public Button(InputField inputField)
+    {
+        Width = inputField.Width;
+        Height = inputField.Height;
+        Padding = inputField.Padding;
+        _backgroundColor = inputField._backgroundColor;
+        _selectedColor = inputField._selectedColor;
+        _textElement = inputField._textElement;
+    }
+
+    public virtual float Render(Renderer renderer, Vector2 position, UIContext context)
     {
         Rectangle rectangle = new(position + new Vector2(Padding, 0), Width - Padding * 2, Height - Padding);
         

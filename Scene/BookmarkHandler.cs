@@ -3,6 +3,7 @@ using Smash.Graphics;
 using SDL3;
 using System.Numerics;
 using Smash;
+using Smash.Input;
 
 public class BookmarkHandler
 {
@@ -38,7 +39,7 @@ public class BookmarkHandler
 
         Font font = AssetManager.Get<Font>(App.FONT_NAME);
 
-        _uiElements.Add(new TextElement(font, "Boomarks", App.BIG_POINT_SIZE));
+        _uiElements.Add(new TextElement(font, "Bookmarks", App.BIG_POINT_SIZE));
         _uiElements.Add(new Separator());
         _uiElements.Add(new Button(MaxWidth, BUTTON_HEIGHT, App.PADDING, _backgroundColor, App.ForegroundColor, new TextElement(font, "+", App.POINT_SIZE)));
         _uiElements.Add(new Separator());
@@ -47,12 +48,14 @@ public class BookmarkHandler
         button!.Selected = true;
         _selectedButtonIndex = 2;
 
-        AddBoomark(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + Path.DirectorySeparatorChar, "Home");
+        AddBoomark(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + Path.DirectorySeparatorChar, "Home", false);
 
         _keybindHandler.RegisterKeybind(SDL.Keycode.D, Action.ToggleBookmarks, true, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.J, Action.MoveDown, false, true);
         _keybindHandler.RegisterKeybind(SDL.Keycode.K, Action.MoveUp, false, true);
         _keybindHandler.RegisterKeybind(SDL.Keycode.E, Action.Enter, false, true);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.Escape, Action.ToggleBookmarks, false, false);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.R, Action.Rename, true, false);
     }
 
     public (bool, string?) Update(double deltaTime)
@@ -67,7 +70,7 @@ public class BookmarkHandler
 
         if (Closing)
         {
-            _width = App.Lerp(_width, 0, deltaTime, SCROLL_SPEED, 1);
+            _width = App.Lerp(_width, 0, deltaTime, SCROLL_SPEED, 5);
 
             if (_width == 0)
             {
@@ -81,7 +84,7 @@ public class BookmarkHandler
         }
         else
         {
-            _width = App.Lerp(_width, MaxWidth, deltaTime, SCROLL_SPEED, 1);
+            _width = App.Lerp(_width, MaxWidth, deltaTime, SCROLL_SPEED, 5);
             _openedTime += (float)deltaTime;
 
             if (_width != MaxWidth)
@@ -90,9 +93,23 @@ public class BookmarkHandler
 
         string? path = null;
 
-        Action? action = _keybindHandler.Update();
-        if (action != null)
-            path = PerformAction((Action)action);
+        if (_uiElements[_selectedButtonIndex] is InputField inputField)
+        {
+            if (inputField.Update())
+                needsRedraw = true;
+
+            if (InputHandler.IsKeyPressed(SDL.Keycode.Escape) || InputHandler.IsKeyPressed(SDL.Keycode.Return))
+            {
+                _uiElements[_selectedButtonIndex] = new Button(inputField);
+                SelectBookmarkButton(_selectedBookmark);
+            }
+        }
+        else
+        {
+            Action? action = _keybindHandler.Update();
+            if (action != null)
+                path = PerformAction((Action)action);
+        }
 
         return (needsRedraw, path);
     }
@@ -114,35 +131,6 @@ public class BookmarkHandler
             basePosition.Y += uiElement.Render(renderer, basePosition, uiContext);
             basePosition.Y += App.PADDING / 2;
         }
-
-
-        //Font font = AssetManager.Get<Font>(App.FONT_NAME);
-
-
-        //Vector2 basePosition = new Vector2(App.PADDING - (MaxWidth - _width));
-        //renderer.RenderText(font, App.POINT_SIZE, "Bookmarks", basePosition, Color.White);
-
-        //basePosition.Y += App.POINT_SIZE + App.PADDING;
-
-        //renderer.RenderLine(basePosition with { X = 0}, basePosition with { X = _width }, App.ForegroundColor);
-
-        //basePosition.Y += App.PADDING;
-
-        //Vector2 bookmarkBasePosition = basePosition;
-        //for (int i = 0; i < _bookmarks.Count; i++)
-        //{
-        //    Bookmark bookmark = _bookmarks[i];
-        //    Vector2 position = bookmarkBasePosition + new Vector2(0, i * App.ENTRY_SPACING);
-
-        //    if (i == _selectedBookmark)
-        //    {
-        //        Vector2 textSize = font.MeasureString(bookmark.Name, App.POINT_SIZE);
-        //        Rectangle selectionRectangle = new(position - new Vector2(App.PADDING / 2), textSize with { X = _width - App.PADDING * 2 } + new Vector2(App.PADDING));
-        //        renderer.RenderFilledRectangle(selectionRectangle, App.ForegroundColor);
-        //    }
-
-        //    renderer.RenderText(font, App.POINT_SIZE, bookmark.Name, position, Color.White);
-        //}
     }
 
     public string? PerformAction(Action action)
@@ -169,6 +157,10 @@ public class BookmarkHandler
                     return _bookmarks[_selectedBookmark].Path;
                 }
 
+                break;
+
+            case Action.Rename:
+                Rename();
                 break;
         }
 
@@ -227,13 +219,33 @@ public class BookmarkHandler
         if (index == -1)
         {
             AddBoomark(FileManagerScene.CurrentPath, "New bookmark");
+            SelectBookmarkButton(_bookmarks.Count - 1);
+            _selectedBookmark = _bookmarks.Count - 1;
             return -1;
         }
 
         return index;
     }
 
-    private void AddBoomark(string path, string name)
+    private void Rename()
+    {
+        if (_selectedBookmark == -1)
+            return;
+
+        Font font = AssetManager.Get<Font>(App.FONT_NAME);
+        Button? button = _uiElements[_selectedButtonIndex] as Button;
+
+        string? name;
+        if (button!.Text != null)
+        {
+            name = button!.Text;
+            _uiElements[_selectedButtonIndex] = new InputField(MaxWidth, BUTTON_HEIGHT, App.PADDING, _backgroundColor, App.ForegroundColor, new TextElement(font, name, App.POINT_SIZE));
+            SelectBookmarkButton(_selectedBookmark);
+        }
+
+    }
+
+    private void AddBoomark(string path, string name, bool promptName = true)
     {
         _bookmarks.Add(new Bookmark()
         {
@@ -242,7 +254,10 @@ public class BookmarkHandler
         });
 
         Font font = AssetManager.Get<Font>(App.FONT_NAME);
-        _uiElements.Add(new Button(MaxWidth, BUTTON_HEIGHT, App.PADDING, _backgroundColor, App.ForegroundColor, new TextElement(font, name, App.POINT_SIZE)));
+        if (promptName)
+            _uiElements.Add(new InputField(MaxWidth, BUTTON_HEIGHT, App.PADDING, _backgroundColor, App.ForegroundColor, new TextElement(font, name, App.POINT_SIZE)));
+        else
+            _uiElements.Add(new Button(MaxWidth, BUTTON_HEIGHT, App.PADDING, _backgroundColor, App.ForegroundColor, new TextElement(font, name, App.POINT_SIZE)));
     }
 
     private void MoveUp()

@@ -6,6 +6,8 @@ public class TextElement : IUIElement
 {
     public string Text;
 
+    public Vector2 TextSize => _font.MeasureString(Text, _pointSize);
+
     private readonly Font _font;
     private readonly int _pointSize;
 
@@ -23,5 +25,10 @@ public class TextElement : IUIElement
 
         renderer.RenderText(_font, _pointSize, Text, middlePosition, Color.White);
         return textSize.Y * 1.5f;
+    }
+
+    public Vector2 GetPosition(Vector2 basePosition, UIContext context)
+    {
+        return Vector2.Round(basePosition + new Vector2(context.TotalWidth / 2, 0) + new Vector2(-TextSize.X, _pointSize) / 2);
     }
 }

@@ -13,5 +13,6 @@ public enum Action
     ToggleConfig,
     ToggleShowHiddenFiles,
     ToggleBookmarks,
-    OpenTerminal
+    OpenTerminal,
+    Rename
 }
