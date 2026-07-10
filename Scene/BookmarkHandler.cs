@@ -7,6 +7,8 @@ using Smash.Input;
 
 public class BookmarkHandler
 {
+    public string BookmarksPath => Path.Combine(App.ConfigDirPath, "Bookmarks.katzi");
+    
     public const int SCROLL_SPEED = 30;
 
     public static float MaxWidth => App.WindowWidth / 4;
@@ -48,7 +50,10 @@ public class BookmarkHandler
         button!.Selected = true;
         _selectedButtonIndex = 2;
 
-        AddBoomark(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + Path.DirectorySeparatorChar, "Home", false);
+        List<Bookmark> bookmarks = ReadBookmarks();
+        
+        foreach (Bookmark bookmark in bookmarks)
+            AddBoomark(bookmark.Path, bookmark.Name, false);
 
         _keybindHandler.RegisterKeybind(SDL.Keycode.D, Action.ToggleBookmarks, true, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.J, Action.MoveDown, false, true);
@@ -101,7 +106,9 @@ public class BookmarkHandler
             if (InputHandler.IsKeyPressed(SDL.Keycode.Escape) || InputHandler.IsKeyPressed(SDL.Keycode.Return))
             {
                 _uiElements[_selectedButtonIndex] = new Button(inputField);
+                _bookmarks[_selectedBookmark].Name = inputField.Text!;
                 SelectBookmarkButton(_selectedBookmark);
+                SaveBookmarks(_bookmarks);
             }
         }
         else
@@ -242,7 +249,6 @@ public class BookmarkHandler
             _uiElements[_selectedButtonIndex] = new InputField(MaxWidth, BUTTON_HEIGHT, App.PADDING, _backgroundColor, App.ForegroundColor, new TextElement(font, name, App.POINT_SIZE));
             SelectBookmarkButton(_selectedBookmark);
         }
-
     }
 
     private void AddBoomark(string path, string name, bool promptName = true)
@@ -296,6 +302,48 @@ public class BookmarkHandler
             button!.Selected = true;
 
             _selectedButtonIndex = 4 + index;
+        }
+    }
+
+    private List<Bookmark> ReadBookmarks()
+    {
+
+        if (!File.Exists(BookmarksPath))
+        {
+            using (var fs = File.Create(BookmarksPath)) { }
+            SaveBookmarks(new() { new Bookmark() { Path = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + Path.DirectorySeparatorChar, Name = "Home" } });
+            return ReadBookmarks();
+        }
+
+        string[] lines = File.ReadAllText(BookmarksPath).Split('\n');
+
+        List<Bookmark> bookmarks = new();
+        foreach (string line in lines)
+        {
+            if (line.Length <= 1)
+                continue;
+
+            int firstChar = line.IndexOf('"');
+
+            string name = line.Substring(0, firstChar - 1);
+            string path = line.Substring(firstChar + 1, line.Length - firstChar - 3).Trim();
+
+            bookmarks.Add(new Bookmark() { Name = name, Path = path });
+        }
+
+        return bookmarks;
+    }
+
+    private void SaveBookmarks(List<Bookmark> bookmarks)
+    {
+        File.Delete(BookmarksPath);
+        using (File.Create(BookmarksPath)) { }
+
+        foreach (Bookmark bookmark in bookmarks)
+        {
+            File.AppendAllText(BookmarksPath, bookmark.Name);
+            File.AppendAllText(BookmarksPath, $""" "{bookmark.Path}" """);
+            File.AppendAllText(BookmarksPath, "\n");
         }
     }
 }
