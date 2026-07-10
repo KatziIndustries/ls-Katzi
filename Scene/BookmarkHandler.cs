@@ -55,7 +55,7 @@ public class BookmarkHandler
         _keybindHandler.RegisterKeybind(SDL.Keycode.K, Action.MoveUp, false, true);
         _keybindHandler.RegisterKeybind(SDL.Keycode.E, Action.Enter, false, true);
         _keybindHandler.RegisterKeybind(SDL.Keycode.Escape, Action.ToggleBookmarks, false, false);
-        _keybindHandler.RegisterKeybind(SDL.Keycode.R, Action.Rename, true, false);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.N, Action.Rename, true, false);
     }
 
     public (bool, string?) Update(double deltaTime)
