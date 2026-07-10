@@ -61,6 +61,7 @@ public class BookmarkHandler
         _keybindHandler.RegisterKeybind(SDL.Keycode.E, Action.Enter, false, true);
         _keybindHandler.RegisterKeybind(SDL.Keycode.Escape, Action.ToggleBookmarks, false, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.N, Action.Rename, true, false);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.R, Action.Remove, true, false);
     }
 
     public (bool, string?) Update(double deltaTime)
@@ -169,6 +170,10 @@ public class BookmarkHandler
             case Action.Rename:
                 Rename();
                 break;
+
+            case Action.Remove:
+                Remove();
+                break;
         }
 
         return null;
@@ -251,6 +256,18 @@ public class BookmarkHandler
         }
     }
 
+    private void Remove()
+    {
+        if (_selectedBookmark == -1)
+            return;
+        
+        _bookmarks.RemoveAt(_selectedBookmark);
+        RemoveBookmarkButton(_selectedBookmark);
+        _selectedBookmark = Math.Clamp(_selectedBookmark, -1, _bookmarks.Count - 1);
+        SelectBookmarkButton(_selectedBookmark);
+        SaveBookmarks(_bookmarks);
+    }
+
     private void AddBoomark(string path, string name, bool promptName = true)
     {
         _bookmarks.Add(new Bookmark()
@@ -286,8 +303,13 @@ public class BookmarkHandler
 
     private void SelectBookmarkButton(int index)
     {
-        Button? previousSelectedButton = _uiElements[_selectedButtonIndex] as Button;
-        previousSelectedButton!.Selected = false;
+        if (_selectedButtonIndex < _uiElements.Count)
+        {
+            Button? previousSelectedButton = _uiElements[_selectedButtonIndex] as Button;
+
+            if (previousSelectedButton != null)
+                previousSelectedButton!.Selected = false;
+        }
 
         if (index == -1)
         {
@@ -303,6 +325,15 @@ public class BookmarkHandler
 
             _selectedButtonIndex = 4 + index;
         }
+    }
+
+    private void RemoveBookmarkButton(int index)
+    {
+        if (index == -1)
+            return;
+
+        _uiElements.RemoveAt(4 + index);
+        _selectedButtonIndex = 4 + index;
     }
 
     private List<Bookmark> ReadBookmarks()
