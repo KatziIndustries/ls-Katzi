@@ -21,6 +21,8 @@ Text
 -.csproj
 -.sln
 -.gitignore
+-.toml
+-.yaml
 Executable
 -
 CompressedArchive

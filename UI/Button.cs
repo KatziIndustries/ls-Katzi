@@ -11,7 +11,11 @@ public class Button : IUIElement
 
     public bool Selected = false;
 
-    public string? Text => _textElement?.Text;
+    public string? Text
+    {
+        get => _textElement?.Text;
+        set => _textElement?.Text = value!;
+    }
 
     protected private Color _backgroundColor { get; init; }
     protected private Color _selectedColor { get; init; }

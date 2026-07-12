@@ -9,13 +9,14 @@ using System.Diagnostics;
 public class FileManagerScene : IScene
 {
     public static string CurrentPath => _currentPath;
-
     public Color PathColor => _selectedEntry == -1 ? Color.FromArgb(50, 50, 50) : Color.FromArgb(28, 28, 28);
 
     private ImageHandler _imageHandler = new();
     private KeybindHandler _keybindHandler = new();
 
     private static string _currentPath = null!;
+    private InputField _pathField;
+
     private string[] _systemEntries = [];
     private Dictionary<string, FileInfo> _fileInfo = new();
 
@@ -49,15 +50,15 @@ public class FileManagerScene : IScene
         {
             _currentPath = App.InitialDirectory;
             if (File.Exists(_currentPath))
-            {
-                _systemEntries = [_currentPath];
-                OpenFile(0);
-            }
+                OpenFile(_currentPath);
         }
         else
         {
             _currentPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + Path.DirectorySeparatorChar;
         }
+
+        Font font = AssetManager.Get<Font>(App.FONT_NAME);
+        _pathField = new InputField(App.WindowWidth, App.PATH_HEIGHT, 0, App.BackgroundColor, App.ForegroundColor, new TextElement(font, _currentPath, App.POINT_SIZE, Alignment.Left));
 
         RefreshSystemEntries();
     }
@@ -106,7 +107,7 @@ public class FileManagerScene : IScene
             if (path != null)
             {
                 UpdatePath(path);
-                _selectedEntry = 0;
+                SelectEntry(0);
                 _bookmarkHandler.Close();
             }
 
@@ -114,39 +115,38 @@ public class FileManagerScene : IScene
                 needsRedraw = true;
         }
 
+        _pathField.Width = App.WindowWidth;
+        _pathField.Text = _currentPath;
+
         return needsRedraw;
     }
 
     public void Render(Renderer renderer)
     {
-        Font font = AssetManager.Get<Font>(App.FONT_NAME);
-
-        bool shouldDeleteImage = false;
-
         if (File.Exists(_currentPath) && _imageHandler.Image != null)
         {
             RenderFile(renderer);
-            shouldDeleteImage = false;
         }
         else
         {
             RenderDirectory(renderer);
-            shouldDeleteImage = true;
+            _imageHandler.DisposeImage();
         }
 
-        Color pathColor = _selectedEntry == -1 ? Color.FromArgb(50, 50, 50) : Color.FromArgb(28, 28, 28);
+        UIContext context = new()
+        {
+            TotalWidth = App.WindowWidth,
+            TotalHeight = App.WindowHeight,
+        };
 
-        Rectangle pathRectangle = new(0, 0, App.WindowWidth, App.PATH_HEIGHT);
-        renderer.RenderFilledRectangle(pathRectangle, pathColor);
+        _pathField.Render(renderer, Vector2.Zero, context);
 
-        int lineColor = pathColor.R + 20; 
-        renderer.RenderLine(pathRectangle.Position + new Vector2(0, pathRectangle.Height), pathRectangle.Position + pathRectangle.Bounds, Color.FromArgb(lineColor, lineColor, lineColor));
+        //int lineColor = pathColor.R + 20; 
+        //renderer.RenderLine(pathRectangle.Position + new Vector2(0, pathRectangle.Height), pathRectangle.Position + pathRectangle.Bounds, Color.FromArgb(lineColor, lineColor, lineColor));
 
-        Vector2 pathTextPosition = new(App.PATH_HEIGHT / 2);
-        renderer.RenderText(font, App.POINT_SIZE, _currentPath, pathTextPosition - new Vector2(0, font.MeasureString(_currentPath, App.POINT_SIZE).Y / 2), Color.White);
-
-        if (shouldDeleteImage)
-            _imageHandler.DisposeImage();
+        //Vector2 pathTextPosition = new(App.PATH_HEIGHT / 2);
+        //renderer.RenderText(font, App.POINT_SIZE, _currentPath, pathTextPosition - new Vector2(0, font.MeasureString(_currentPath, App.POINT_SIZE).Y / 2), Color.White);
+        
 
         if (_bookmarkHandler.Active || _bookmarkHandler.Closing)
         {
@@ -203,7 +203,7 @@ public class FileManagerScene : IScene
                     if (_fileInfo.TryGetValue(_systemEntries[i], out FileInfo? fileInfo))
                     {
                         Vector2 fileInfoPosition = position + new Vector2(App.WindowWidth / 2, 0);
-                        renderer.RenderText(font, App.POINT_SIZE, GetFileLengthReadable(fileInfo.Length), fileInfoPosition, Color.White);
+                        renderer.RenderText(font, App.POINT_SIZE, Utils.GetFileLengthReadable(fileInfo.Length), fileInfoPosition, Color.White);
                     }
                 }
             }
@@ -218,145 +218,96 @@ public class FileManagerScene : IScene
 
     public void PerformAction(Action action)
     {
-        if (action == Action.Enter)
+        switch (action)
         {
-            if (_selectedEntry != -1 && _selectedEntry < _systemEntries.Length)
-            {
-                OpenFile(_selectedEntry);
-            }
+            case Action.Enter:
+                if (_selectedEntry != -1 && _selectedEntry < _systemEntries.Length)
+                    OpenEntry(_selectedEntry);
+                break;
 
-            return;
-        }
+            case Action.ForceEnterDirectory:
+                if (_systemEntries.Length > 0 && _selectedEntry == -1)
+                    OpenEntry(0);
+                break;
 
-        if (action == Action.ForceEnterDirectory)
-        {
-            if (_systemEntries.Length > 0 && _selectedEntry == -1)
-            {
-                OpenFile(0);
-            }
+            case Action.LeaveSearchBar:
+                if (_systemEntries.Length > 0 && _selectedEntry == -1)
+                    SelectEntry(0);
+                break;
 
-            return;
-        }
+            case Action.EnterSearchBar:
+                SelectEntry(-1);
+                break;
 
-        if (action == Action.EnterParentDirectory && _selectedEntry != -1)
-        {
-            string parentDir = GetParentDirectory();
-            string oldPath = _currentPath;
-            UpdatePath(parentDir + (parentDir == "/" ? "" : Path.DirectorySeparatorChar));
+            case Action.MoveUp:
+                if (_selectedEntry > 0)
+                {
+                    SelectEntry(_selectedEntry - 1);
+                    CenterScroll();
+                }
+                break;
+            
+            case Action.MoveDown:
+                if (_systemEntries.Length > _selectedEntry + 1)
+                {
+                    SelectEntry(_selectedEntry + 1);
+                    CenterScroll();
+                }
+                break;
 
-            if (Directory.Exists(oldPath)) oldPath = oldPath.Remove(oldPath.Length - 1, 1);
-            int entryIndex = FindEntryIndex(oldPath);
+            case Action.Backspace:
+                UpdatePath(_currentPath.Remove(_currentPath.Length - 1, 1));
+                break;
 
-            if (entryIndex != -1)
-            {
-                _selectedEntry = entryIndex;
-            }
-            else
-            {
-                _selectedEntry = 0;
-            }
+            case Action.CtrlBackspace:
+                UpdatePath(Utils.JumpBack(_currentPath));
+                break;
 
-            CenteriseScroll(true);
-            return;
-        }
+            case Action.ToggleConfig:
+                App.SetScene<ConfigScene>();
+                break;
 
-        if (action == Action.LeaveSearchBar)
-        {
-            if (_systemEntries.Length > 0 && _selectedEntry == -1)
-            {
-                _selectedEntry = 0;
-            }
+            case Action.ToggleShowHiddenFiles:
+                _showHiddenFiles = !_showHiddenFiles;
+                RefreshSystemEntries();
+                SelectEntry(0);
+                break;
 
-            return;
-        }
+            case Action.ToggleBookmarks:
+                _bookmarkHandler.Toggle();
+                break;
 
-        if (action == Action.EnterSearchBar)
-        {
-            _selectedEntry = -1;
-            return;
-        }
+            case Action.EnterParentDirectory:
+                if (_selectedEntry == -1)
+                    break;
 
-        if (action == Action.MoveUp)
-        {
-            if (_selectedEntry > 0)
-            {
-                _selectedEntry--;
-                CenteriseScroll();
-            }
+                OpenParentDirectory();
+                break;
 
-            return;
-        }
-
-        if (action == Action.MoveDown)
-        {
-            if (_systemEntries.Length > _selectedEntry + 1)
-            {
-                _selectedEntry++;
-                CenteriseScroll();
-            }
-
-            return;
-        }
-
-        if (action == Action.CtrlBackspace)
-        {
-            if (_currentPath[_currentPath.Length - 1] == Path.DirectorySeparatorChar)
-            {
-                UpdatePath(_currentPath = _currentPath.Remove(_currentPath.Length - 1, 1));
-            }
-
-            int index = _currentPath.LastIndexOf(Path.DirectorySeparatorChar);
-            UpdatePath(_currentPath.Substring(0, index + 1));
-            return;
-        }
-
-        if (action == Action.Backspace)
-        {
-            UpdatePath(_currentPath.Remove(_currentPath.Length - 1, 1));
-            return;
-        }
-
-        if (action == Action.ToggleConfig)
-        {
-            App.SetScene<ConfigScene>();
-        }
-
-        if (action == Action.ToggleShowHiddenFiles)
-        {
-            _showHiddenFiles = !_showHiddenFiles;
-            RefreshSystemEntries();
-            _selectedEntry = 0;
-        }
-
-        if (action == Action.ToggleBookmarks)
-        {
-            _bookmarkHandler.Toggle();
-        }
-
-        if (action == Action.OpenTerminal)
-        {
-            string defaultTerminal = ConfigScene.DefaultTerminal;
-            ProcessStartInfo processStartInfo = new()
-            {
-                FileName = defaultTerminal,
-                Arguments = $"--directory {_currentPath}",
-                UseShellExecute = false
-            };
-
-            Process.Start(processStartInfo);
+            case Action.OpenTerminal:   
+                Utils.OpenTerminal(_currentPath);
+                break;
         }
     }
 
-    private string GetParentDirectory()
+    private void SelectEntry(int index)
     {
-        if (File.Exists(_currentPath))
-            return Path.GetDirectoryName(_currentPath)!;
+        if (index > _systemEntries.Length - 1)
+            return;
 
-        string dirName = Path.GetDirectoryName(_currentPath) ?? "/";
-        return (Directory.GetParent(dirName) ?? new DirectoryInfo("/")).FullName;
+        ToggleButtonByIndex(_selectedEntry, false);
+        ToggleButtonByIndex(index, true);
+            
+        _selectedEntry = index;
     }
 
-    private void CenteriseScroll(bool immediate = false)
+    private void ToggleButtonByIndex(int index, bool select)
+    {
+        if (index == -1)
+            _pathField.Selected = select;
+    }
+
+    private void CenterScroll(bool immediate = false)
     {
         float value = Math.Clamp(-(App.ENTRY_SPACING * _selectedEntry) + App.WindowHeight / 2, Math.Min(-(App.ENTRY_SPACING * _systemEntries.Length) + App.WindowHeight - App.PATH_HEIGHT - App.PADDING, 0), 0);
 
@@ -366,27 +317,50 @@ public class FileManagerScene : IScene
             _scroll = value;
     }
 
-    private void OpenFile(int entryIndex)
+    private void OpenParentDirectory()
     {
+        string parentDir = Utils.GetParentDirectory(_currentPath);
+        string oldPath = _currentPath;
+        UpdatePath(parentDir + (parentDir == "/" ? "" : Path.DirectorySeparatorChar));
+
+        if (Directory.Exists(oldPath)) oldPath = oldPath.Remove(oldPath.Length - 1, 1);
+        int entryIndex = _systemEntries.IndexOf(oldPath);
+
+        if (entryIndex != -1)
+            SelectEntry(entryIndex);
+        else
+            SelectEntry(0);
+
+        CenterScroll(true);
+        return;
+    }
+
+    private void OpenEntry(int entryIndex)
+    {
+        if (entryIndex > _systemEntries.Length - 1)
+            return;
+
         string entry = _systemEntries[entryIndex];
+
         if (Directory.Exists(entry))
         {
             UpdatePath(entry + Path.DirectorySeparatorChar);
 
             if (_selectedEntry != -1) 
-                _selectedEntry = 0;
+                SelectEntry(0);
 
             return;
         }
         else if (File.Exists(entry))
         {
-            string extension = Path.GetExtension(entry);
-            OpenFileType(entry, extension);
+            OpenFile(entry);
         }
     }
 
-    private void OpenFileType(string entry, string extension)
+    private void OpenFile(string path)
     {
+        string extension = Path.GetExtension(path);
+
         FileType fileType = FileTypeUtils.FromExtension(extension);
 
         if (fileType == FileType.Unknown)
@@ -396,11 +370,12 @@ public class FileManagerScene : IScene
         }
 
         FileTypeUtils.DefaultApplications.TryGetValue(fileType, out string? defaultApp);
-        if (defaultApp == null) return;
+        if (defaultApp == null) 
+            return;
 
         if (defaultApp == "Built-In")
         {
-            OpenFileTypeBuiltIn(entry, fileType);
+            OpenFileBuiltIn(path, fileType);
             return;
         }
 
@@ -410,7 +385,7 @@ public class FileManagerScene : IScene
         {
             processStartInfo = new()
             {
-                FileName = entry,
+                FileName = path,
                 UseShellExecute = true
             };
         }
@@ -419,7 +394,7 @@ public class FileManagerScene : IScene
             processStartInfo = new()
             {
                 FileName = defaultApp,
-                Arguments = entry,
+                Arguments = path,
                 UseShellExecute = true
             };
         }
@@ -427,7 +402,7 @@ public class FileManagerScene : IScene
         Process.Start(processStartInfo);
     }
 
-    private void OpenFileTypeBuiltIn(string entry, FileType fileType)
+    private void OpenFileBuiltIn(string entry, FileType fileType)
     {
         if (fileType == FileType.Unknown)
             return;
@@ -441,7 +416,7 @@ public class FileManagerScene : IScene
                 UpdatePath(entry);
 
                 if (_selectedEntry == -1) 
-                    _selectedEntry = 0;
+                    SelectEntry(0);
 
                 Texture2D texture = new Texture2D(textureHandle, "");
                 SDL.SetTextureScaleMode(texture.Handle, SDL.ScaleMode.Linear);
@@ -465,11 +440,6 @@ public class FileManagerScene : IScene
         }
     }
 
-    private int FindEntryIndex(string entry)
-    {
-        return _systemEntries.IndexOf(entry);
-    }
-
     private void UpdatePath(string newPath)
     {
         string oldPath = _currentPath;
@@ -488,24 +458,6 @@ public class FileManagerScene : IScene
         }
     }
 
-    private readonly string[] _sizes = { "B", "KB", "MB", "GB", "TB" };
-    private string GetFileLengthReadable(long length)
-    {
-        double size = length;
-        int order = 0;
-
-        while (size >= 1024 && order < _sizes.Length - 1)
-        {
-            order++;
-            size /= 1024;
-        }
-
-        if (_sizes[order] == "B")
-            return $"{size:0} {_sizes[order]}";
-        else
-            return $"{size:0.0} {_sizes[order]}";
-    }
-
     private bool RefreshSystemEntries()
     {
         string[] newEntries;
@@ -522,7 +474,7 @@ public class FileManagerScene : IScene
                 _scroll = 0;
                 _preferredScroll = 0;
                 _systemEntries = [];
-                _selectedEntry = -1;
+                SelectEntry(-1);
                 return true;
             }
             else return false;
@@ -541,7 +493,7 @@ public class FileManagerScene : IScene
             _preferredScroll = 0;
             _systemEntries = [];
             _pathPermissionDenied = true;
-            _selectedEntry = 0;
+            SelectEntry(0);
             return true; 
         }
 
