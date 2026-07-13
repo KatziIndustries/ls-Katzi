@@ -92,17 +92,13 @@ public class InputField : Button
         Color color = Selected ? _selectedColor : _backgroundColor;
         renderer.RenderFilledRectangle(rectangle, color);
 
-        //if (Selected)
-        //    renderer.RenderRectangle(rectangle, Color.White);
-
         if (_textElement != null)
         {
             _textElement.Render(renderer, position, context);
 
             Vector2 textPosition = _textElement.GetPosition(position, context);
-            Vector2 textSize = _textElement.TextSize;
             
-            Rectangle caretRectangle = new(textPosition.X + textSize.X + 1, textPosition.Y, 2, CARET_HEIGHT);
+            Rectangle caretRectangle = new(textPosition.X + _textElement.TextWidth + 1, textPosition.Y, 2, CARET_HEIGHT);
             renderer.RenderFilledRectangle(caretRectangle, Color.White);
         }
 

@@ -17,7 +17,7 @@ public static class Utils
     {
         if (current[current.Length - 1] == Path.DirectorySeparatorChar)
         {
-            return current.Remove(current.Length - 1, 1);
+            current = current.Remove(current.Length - 1, 1);
         }
 
         int index = current.LastIndexOf(Path.DirectorySeparatorChar);
@@ -52,5 +52,13 @@ public static class Utils
             return $"{size:0} {_sizeUnits[order]}";
         else
             return $"{size:0.0} {_sizeUnits[order]}";
+    }
+
+    public static FileInfo? GetFileInfo(string path)
+    {
+        if (!File.Exists(path))
+            return null;
+
+        return new FileInfo(path);
     }
 }

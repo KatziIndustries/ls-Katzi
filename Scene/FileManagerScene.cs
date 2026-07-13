@@ -18,8 +18,6 @@ public class FileManagerScene : IScene
     private InputField _pathField;
 
     private string[] _systemEntries = [];
-    private Dictionary<string, FileInfo> _fileInfo = new();
-
     private int _selectedEntry = -1;
 
     private float _scroll;
@@ -197,15 +195,6 @@ public class FileManagerScene : IScene
 
                 bool isDirectory = Directory.Exists(_systemEntries[i]);
                 renderer.RenderText(font, App.POINT_SIZE, Path.GetFileName(_systemEntries[i]), position, isDirectory ? Color.RoyalBlue : Color.White);
-
-                if (!isDirectory)
-                {
-                    if (_fileInfo.TryGetValue(_systemEntries[i], out FileInfo? fileInfo))
-                    {
-                        Vector2 fileInfoPosition = position + new Vector2(App.WindowWidth / 2, 0);
-                        renderer.RenderText(font, App.POINT_SIZE, Utils.GetFileLengthReadable(fileInfo.Length), fileInfoPosition, Color.White);
-                    }
-                }
             }
         }
         else
@@ -508,22 +497,7 @@ public class FileManagerScene : IScene
             _scroll = 0;
             _preferredScroll = 0;
             _systemEntries = newEntries;
-            GetFileInfos(newEntries);
             return true;
-        }
-    }
-
-    private void GetFileInfos(string[] entries)
-    {
-        foreach (string entry in entries)
-        {
-            if (Directory.Exists(entry)) 
-                continue;
-
-            if (!_fileInfo.ContainsKey(entry))
-            {
-                _fileInfo.Add(entry, new FileInfo(entry));
-            }
         }
     }
 
