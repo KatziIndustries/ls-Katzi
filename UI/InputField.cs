@@ -94,9 +94,9 @@ public class InputField : Button
 
         if (_textElement != null)
         {
-            _textElement.Render(renderer, position, context);
+            _textElement.Render(renderer, position + new Vector2(TextWidthPadding, 0), context);
 
-            Vector2 textPosition = _textElement.GetPosition(position, context);
+            Vector2 textPosition = _textElement.GetPosition(position, context) + new Vector2(TextWidthPadding, 0);
             
             Rectangle caretRectangle = new(textPosition.X + _textElement.TextWidth + 1, textPosition.Y, 2, CARET_HEIGHT);
             renderer.RenderFilledRectangle(caretRectangle, Color.White);

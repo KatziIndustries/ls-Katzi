@@ -15,10 +15,14 @@ public class FileManagerScene : IScene
     private KeybindHandler _keybindHandler = new();
 
     private static string _currentPath = null!;
+
     private InputField _pathField;
+    private Separator _pathSeparator;
 
     private string[] _systemEntries = [];
     private int _selectedEntry = -1;
+
+    private Button[] _entryButtons = [];
 
     private float _scroll;
     private float _preferredScroll;
@@ -27,6 +31,8 @@ public class FileManagerScene : IScene
     private bool _pathPermissionDenied = false;
 
     private BookmarkHandler _bookmarkHandler = new();
+
+    private float _lastWindowWidth;
 
     public FileManagerScene()
     {
@@ -57,6 +63,9 @@ public class FileManagerScene : IScene
 
         Font font = AssetManager.Get<Font>(App.FONT_NAME);
         _pathField = new InputField(App.WindowWidth, App.PATH_HEIGHT, 0, App.BackgroundColor, App.ForegroundColor, new TextElement(font, _currentPath, App.POINT_SIZE, Alignment.Left));
+        _pathSeparator = new Separator();
+
+        _lastWindowWidth = App.WindowWidth;
 
         RefreshSystemEntries();
     }
@@ -113,8 +122,15 @@ public class FileManagerScene : IScene
                 needsRedraw = true;
         }
 
-        _pathField.Width = App.WindowWidth;
-        _pathField.Text = _currentPath;
+        if (_lastWindowWidth != App.WindowWidth)
+        {
+            _lastWindowWidth = App.WindowWidth;
+
+            _pathField.Width = App.WindowWidth;
+            _pathField.Text = _currentPath;
+
+            ResizeUI();
+        }
 
         return needsRedraw;
     }
@@ -123,7 +139,10 @@ public class FileManagerScene : IScene
     {
         if (File.Exists(_currentPath) && _imageHandler.Image != null)
         {
-            RenderFile(renderer);
+            Image image = (Image)_imageHandler.Image!;
+
+            Vector2 position = new Vector2(App.WindowWidth / 2, App.WindowHeight / 2) - image.Texture.Bounds * image.Zoom / 2;
+            renderer.RenderTexture(image.Texture, position - image.Offset, Color.White, image.Zoom);
         }
         else
         {
@@ -134,17 +153,11 @@ public class FileManagerScene : IScene
         UIContext context = new()
         {
             TotalWidth = App.WindowWidth,
-            TotalHeight = App.WindowHeight,
+            TotalHeight = App.PATH_HEIGHT - App.PADDING,
         };
 
         _pathField.Render(renderer, Vector2.Zero, context);
-
-        //int lineColor = pathColor.R + 20; 
-        //renderer.RenderLine(pathRectangle.Position + new Vector2(0, pathRectangle.Height), pathRectangle.Position + pathRectangle.Bounds, Color.FromArgb(lineColor, lineColor, lineColor));
-
-        //Vector2 pathTextPosition = new(App.PATH_HEIGHT / 2);
-        //renderer.RenderText(font, App.POINT_SIZE, _currentPath, pathTextPosition - new Vector2(0, font.MeasureString(_currentPath, App.POINT_SIZE).Y / 2), Color.White);
-        
+        _pathSeparator.Render(renderer, new Vector2(0, App.PATH_HEIGHT), context);
 
         if (_bookmarkHandler.Active || _bookmarkHandler.Closing)
         {
@@ -158,43 +171,27 @@ public class FileManagerScene : IScene
         }
     }
 
-    private void RenderFile(Renderer renderer)
-    {
-        Image image = (Image)_imageHandler.Image!;
-
-        Vector2 position = new Vector2(App.WindowWidth / 2, App.WindowHeight / 2) - image.Texture.Bounds * image.Zoom / 2;
-        renderer.RenderTexture(image.Texture, position - image.Offset, Color.White, image.Zoom);
-    }
-
     private void RenderDirectory(Renderer renderer)
     {
         Font font = AssetManager.Get<Font>(App.FONT_NAME);
 
         Vector2 entriesStartPosition = new Vector2(App.PADDING) + new Vector2(0, _scroll + App.PATH_HEIGHT);
+        entriesStartPosition.X = 0;
+
+        UIContext context = new()
+        {
+            TotalWidth = App.WindowWidth,
+            TotalHeight = App.ENTRY_SPACING
+        };
 
         Rectangle clipRect = new Rectangle(0, App.PATH_HEIGHT, App.WindowWidth, App.WindowHeight - App.PATH_HEIGHT);
         SDL.SetRenderClipRect(renderer.Handle, clipRect.ToSDLRect());
         
         if (!_pathPermissionDenied)
         {
-            for (int i = 0; i < _systemEntries.Length; i++)
+            foreach (Button button in _entryButtons)
             {
-                Vector2 position = Vector2.Round(entriesStartPosition + new Vector2(0, i * App.ENTRY_SPACING));
-                if (position.Y < 0) continue;
-                if (position.Y > App.WindowHeight) break;
-
-                if (i == _selectedEntry)
-                {
-                    Vector2 hitboxStartPos = position;
-                    hitboxStartPos.X = 0;
-                    hitboxStartPos.Y -= App.ENTRY_SPACING / 2 - font.MeasureString(_systemEntries[i], App.POINT_SIZE).Y / 2;
-
-                    Rectangle rect = new Rectangle(hitboxStartPos, App.WindowWidth, App.ENTRY_SPACING);
-                    renderer.RenderFilledRectangle(rect, Color.FromArgb(50, 50, 50));
-                }
-
-                bool isDirectory = Directory.Exists(_systemEntries[i]);
-                renderer.RenderText(font, App.POINT_SIZE, Path.GetFileName(_systemEntries[i]), position, isDirectory ? Color.RoyalBlue : Color.White);
+                entriesStartPosition.Y += button.Render(renderer, entriesStartPosition, context);
             }
         }
         else
@@ -293,12 +290,20 @@ public class FileManagerScene : IScene
     private void ToggleButtonByIndex(int index, bool select)
     {
         if (index == -1)
+        {
             _pathField.Selected = select;
+            return;
+        }
+
+        if (index > _entryButtons.Length - 1)
+            return;
+
+        _entryButtons[index].Selected = select; 
     }
 
     private void CenterScroll(bool immediate = false)
     {
-        float value = Math.Clamp(-(App.ENTRY_SPACING * _selectedEntry) + App.WindowHeight / 2, Math.Min(-(App.ENTRY_SPACING * _systemEntries.Length) + App.WindowHeight - App.PATH_HEIGHT - App.PADDING, 0), 0);
+        float value = Math.Clamp(-(App.ENTRY_SPACING * _selectedEntry) + App.WindowHeight / 2, Math.Min(-(App.ENTRY_SPACING * _systemEntries.Length) + App.WindowHeight - App.PATH_HEIGHT - App.PADDING * 2, 0), 0);
 
         _preferredScroll = value;
 
@@ -443,6 +448,7 @@ public class FileManagerScene : IScene
 
         if (oldPath != _currentPath)
         {
+            _pathField.Text = _currentPath;
             RefreshSystemEntries();
         }
     }
@@ -462,7 +468,7 @@ public class FileManagerScene : IScene
             {
                 _scroll = 0;
                 _preferredScroll = 0;
-                _systemEntries = [];
+                SetSystemEntries([]);
                 SelectEntry(-1);
                 return true;
             }
@@ -480,8 +486,8 @@ public class FileManagerScene : IScene
         {
             _scroll = 0;
             _preferredScroll = 0;
-            _systemEntries = [];
             _pathPermissionDenied = true;
+            SetSystemEntries([]);
             SelectEntry(0);
             return true; 
         }
@@ -496,13 +502,43 @@ public class FileManagerScene : IScene
         {
             _scroll = 0;
             _preferredScroll = 0;
-            _systemEntries = newEntries;
+            SetSystemEntries(newEntries);
             return true;
+        }
+    }
+
+    private void SetSystemEntries(string[] entries)
+    {
+        _systemEntries = entries;
+        
+        _entryButtons = new Button[entries.Length];
+
+        Font font = AssetManager.Get<Font>(App.FONT_NAME);
+
+        for (int i = 0; i < entries.Length; i++)
+        {
+            bool isDirectory = Directory.Exists(entries[i]);
+            string name = Path.GetFileName(entries[i]) + (isDirectory ? Path.DirectorySeparatorChar : "");
+
+            TextElement textElement = new(font, name, App.POINT_SIZE, Alignment.Left)
+            {
+                TextColor = isDirectory ? Color.RoyalBlue : Color.White
+            };
+            
+            _entryButtons[i] = new Button(App.WindowWidth, App.ENTRY_SPACING, 0, App.BackgroundColor, App.ForegroundColor, textElement) { TextWidthPadding = App.PADDING };
         }
     }
 
     private float GetMinScroll(int numSysEntries)
     {
         return -App.PADDING * 2 - (numSysEntries * App.ENTRY_SPACING) + (App.WindowHeight - App.PATH_HEIGHT);
+    }
+
+    private void ResizeUI()
+    {
+        foreach (Button button in _entryButtons)
+        {
+            button.Width = App.WindowWidth;
+        }
     }
 }

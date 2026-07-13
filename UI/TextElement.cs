@@ -10,6 +10,8 @@ public class TextElement : IUIElement
     public float TextHeight => _textHeight;
     public int PointSize => _pointSize;
 
+    public Color TextColor { get; init; } = Color.White;
+
     private readonly Font _font;
     private readonly int _pointSize;
     private readonly Alignment _alignment;
@@ -29,7 +31,7 @@ public class TextElement : IUIElement
         Vector2 textSize = _font.MeasureString(Text, _pointSize);
         Vector2 textPosition = GetPosition(position, context);
 
-        renderer.RenderText(_font, _pointSize, Text, textPosition, Color.White);
+        renderer.RenderText(_font, _pointSize, Text, textPosition, TextColor);
         return textSize.Y * 1.5f;
     }
 
@@ -44,7 +46,7 @@ public class TextElement : IUIElement
                 break;
 
             case Alignment.Left:
-                textPosition = Vector2.Round(basePosition + new Vector2(TextHeight / 2));
+                textPosition = Vector2.Round(basePosition + new Vector2(TextHeight / 2, TextHeight - context.TotalHeight / 2));
                 break;
 
             default:
