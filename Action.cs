@@ -15,5 +15,5 @@ public enum Action
     ToggleBookmarks,
     OpenTerminal,
     Rename,
-    Remove
+    Remove,
 }

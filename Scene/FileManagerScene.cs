@@ -34,6 +34,8 @@ public class FileManagerScene : IScene
 
     private float _lastWindowWidth;
 
+    private bool _renaming = false;
+
     public FileManagerScene()
     {
         _keybindHandler.RegisterKeybind(SDL.Keycode.E, Action.Enter, false, false);
@@ -49,6 +51,7 @@ public class FileManagerScene : IScene
         _keybindHandler.RegisterKeybind(SDL.Keycode.H, Action.ToggleShowHiddenFiles , true, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.D, Action.ToggleBookmarks , true, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.T, Action.OpenTerminal , true, false);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.N, Action.Rename , true, false);
 
         if (App.InitialDirectory != null)
         {
@@ -68,6 +71,8 @@ public class FileManagerScene : IScene
         _lastWindowWidth = App.WindowWidth;
 
         RefreshSystemEntries();
+
+        SelectEntry(0);
     }
 
     public bool Update(double deltaTime)
@@ -91,19 +96,38 @@ public class FileManagerScene : IScene
             if (_imageHandler.Update(deltaTime))
                 needsRedraw = true;
 
-            if (InputHandler.TextInput != null && InputHandler.TextInput != string.Empty && _selectedEntry == -1)
+            if (InputHandler.TextInput != null && InputHandler.TextInput != string.Empty)
             {
-                UpdatePath(_currentPath + InputHandler.TextInput);
-                needsRedraw = true;
+                if (_selectedEntry == -1)
+                {
+                    UpdatePath(_currentPath + InputHandler.TextInput);
+                    needsRedraw = true;
 
-                RefreshSystemEntries();
+                    RefreshSystemEntries();
+                }
+                else if (_renaming)
+                {
+                    ((InputField)_entryButtons[_selectedEntry]).Text += InputHandler.TextInput;
+                }
             }
 
             Action? action = _keybindHandler.Update();
             if (action != null)
             {
-                PerformAction((Action)action);
-                needsRedraw = true;
+                if (!_renaming)
+                {
+                    PerformAction((Action)action);
+                    needsRedraw = true;
+                }
+                else
+                {
+                    action = (Action)action;
+                    if (action == Action.Backspace)
+                        Backspace();
+
+                    if (action == Action.CtrlBackspace)
+                        Backspace(true);
+                }
             }
         }
 
@@ -130,6 +154,11 @@ public class FileManagerScene : IScene
             _pathField.Text = _currentPath;
 
             ResizeUI();
+        }
+
+        if (InputHandler.IsKeyPressed(SDL.Keycode.Return) && _renaming)
+        {
+            FinishRename();
         }
 
         return needsRedraw;
@@ -228,27 +257,19 @@ public class FileManagerScene : IScene
                 break;
 
             case Action.MoveUp:
-                if (_selectedEntry > 0)
-                {
-                    SelectEntry(_selectedEntry - 1);
-                    CenterScroll();
-                }
+                MoveUp();
                 break;
             
             case Action.MoveDown:
-                if (_systemEntries.Length > _selectedEntry + 1)
-                {
-                    SelectEntry(_selectedEntry + 1);
-                    CenterScroll();
-                }
+                MoveDown();
                 break;
 
             case Action.Backspace:
-                UpdatePath(_currentPath.Remove(_currentPath.Length - 1, 1));
+                Backspace();
                 break;
 
             case Action.CtrlBackspace:
-                UpdatePath(Utils.JumpBack(_currentPath));
+                Backspace(true);
                 break;
 
             case Action.ToggleConfig:
@@ -275,7 +296,114 @@ public class FileManagerScene : IScene
             case Action.OpenTerminal:   
                 Utils.OpenTerminal(_currentPath);
                 break;
+
+            case Action.Rename:
+                Rename();
+                break;
         }
+    }
+
+    private void Rename()
+    {
+        if (_selectedEntry == -1)
+            return;
+
+        Font font = AssetManager.Get<Font>(App.FONT_NAME);
+
+        Button button = _entryButtons[_selectedEntry];
+        
+        bool directory = Directory.Exists(_systemEntries[_selectedEntry]);
+        string text = button.Text!;
+
+        if (directory)
+            text = text.Remove(text.Length - 1, 1);
+
+        TextElement textElement = new TextElement(font, text, App.POINT_SIZE, Alignment.Left) { XPadding = App.PADDING };
+        InputField inputField = new(button.Width, button.Height, button.Padding, App.BackgroundColor, App.ForegroundColor, textElement);
+
+        _entryButtons[_selectedEntry] = inputField;
+        _renaming = true;
+    }
+
+    private void FinishRename()
+    {
+        string entry = _systemEntries[_selectedEntry];
+        if (File.Exists(entry))
+        {
+            string directory = Path.GetDirectoryName(entry)!;
+            string name = ((InputField)_entryButtons[_selectedEntry]).Text!;
+
+            try
+            {
+                File.Move(entry, Path.Combine(directory, name));
+            }
+            catch (UnauthorizedAccessException)
+            {
+                Console.WriteLine("Couldn't rename file (No permission)");
+            }
+        }
+        else if (Directory.Exists(entry))
+        {
+            string dir = Path.GetDirectoryName(entry)!;
+            string name = ((InputField)_entryButtons[_selectedEntry]).Text!;
+
+            try
+            {
+                Directory.Move(entry, Path.Combine(dir, name));
+            }
+            catch (UnauthorizedAccessException)
+            {
+                Console.WriteLine("Couldn't rename directory (No permission)");
+            }
+        }
+
+        RefreshSystemEntries();
+        SelectEntry(_selectedEntry);
+        _renaming = false;
+    }
+
+    private void MoveUp()
+    {
+        if (_renaming)
+            return;
+
+        if (_selectedEntry > 0)
+        {
+            SelectEntry(_selectedEntry - 1);
+            CenterScroll();
+        }
+    }
+
+    private void MoveDown()
+    {
+        if (_renaming)
+            return;
+
+        if (_systemEntries.Length > _selectedEntry + 1)
+        {
+            SelectEntry(_selectedEntry + 1);
+            CenterScroll();
+        }
+    }
+
+    private void Backspace(bool ctrl = false)
+    {
+        if(_renaming)
+        {
+            InputField inputField = (InputField)_entryButtons[_selectedEntry];
+
+            if (inputField.Text != null && inputField.Text.Length > 0)
+            {
+                inputField.Text = inputField.Text!.Remove(inputField.Text.Length - 1, 1);
+            }
+
+            return;
+        }
+
+        if (!ctrl)
+            UpdatePath(_currentPath.Remove(_currentPath.Length - 1, 1));
+        else
+            UpdatePath(Utils.JumpBack(_currentPath));
     }
 
     private void SelectEntry(int index)
@@ -524,10 +652,11 @@ public class FileManagerScene : IScene
 
             TextElement textElement = new(font, name, App.POINT_SIZE, Alignment.Left)
             {
-                TextColor = isDirectory ? Color.RoyalBlue : Color.White
+                TextColor = isDirectory ? Color.RoyalBlue : Color.White,
+                XPadding = App.PADDING
             };
             
-            _entryButtons[i] = new Button(App.WindowWidth, App.ENTRY_SPACING, 0, App.BackgroundColor, App.ForegroundColor, textElement) { TextWidthPadding = App.PADDING };
+            _entryButtons[i] = new Button(App.WindowWidth, App.ENTRY_SPACING, 0, App.BackgroundColor, App.ForegroundColor, textElement);
         }
     }
 

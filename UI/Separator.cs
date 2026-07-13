@@ -1,7 +1,7 @@
 using System.Numerics;
 using Smash.Graphics;
 
-public class Separator : IUIElement
+public struct Separator : IUIElement
 {
     public float Render(Renderer renderer, Vector2 position, UIContext uiContext)
     {

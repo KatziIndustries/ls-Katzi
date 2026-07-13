@@ -17,8 +17,6 @@ public class Button : IUIElement
         set => _textElement?.Text = value!;
     }
 
-    public float TextWidthPadding { get; init; }
-
     protected private Color _backgroundColor { get; init; }
     protected private Color _selectedColor { get; init; }
 
@@ -55,7 +53,7 @@ public class Button : IUIElement
         {
             UIContext textContext = context with { TotalHeight = Height };
 
-            _textElement.Render(renderer, position + new Vector2(TextWidthPadding, 0), textContext);
+            _textElement.Render(renderer, position, textContext);
         }
 
         return Height - Padding;

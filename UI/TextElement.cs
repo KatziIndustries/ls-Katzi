@@ -10,7 +10,10 @@ public class TextElement : IUIElement
     public float TextHeight => _textHeight;
     public int PointSize => _pointSize;
 
+    public float XPadding { get; init; }
+
     public Color TextColor { get; init; } = Color.White;
+
 
     private readonly Font _font;
     private readonly int _pointSize;
@@ -53,6 +56,9 @@ public class TextElement : IUIElement
                 textPosition = Vector2.Round(basePosition + new Vector2(context.TotalWidth / 2, 0) + new Vector2(-TextWidth, TextHeight) / 2);
                 break;
         }
+
+        textPosition.X += XPadding;
+
         return textPosition;
     }
 }
