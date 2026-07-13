@@ -8,6 +8,8 @@ using System.Diagnostics;
 
 public class FileManagerScene : IScene
 {
+    public const float AUTO_REFRESH_TIME = 1;
+
     public static string CurrentPath => _currentPath;
     public Color PathColor => _selectedEntry == -1 ? Color.FromArgb(50, 50, 50) : Color.FromArgb(28, 28, 28);
 
@@ -35,6 +37,8 @@ public class FileManagerScene : IScene
     private float _lastWindowWidth;
 
     private bool _renaming = false;
+
+    private float _refreshTimer;
 
     public FileManagerScene()
     {
@@ -78,6 +82,15 @@ public class FileManagerScene : IScene
     public bool Update(double deltaTime)
     {
         bool needsRedraw = false;
+
+        if (!_renaming)
+            _refreshTimer += (float)deltaTime;
+
+        if (_refreshTimer > AUTO_REFRESH_TIME)
+        {
+            RefreshSystemEntries();
+            _refreshTimer = 0;
+        }
 
         if (InputHandler.ScrollWheelDelta != 0)
         {
@@ -214,12 +227,17 @@ public class FileManagerScene : IScene
 
         Rectangle clipRect = new Rectangle(0, App.PATH_HEIGHT, App.WindowWidth, App.WindowHeight - App.PATH_HEIGHT);
         SDL.SetRenderClipRect(renderer.Handle, clipRect.ToSDLRect());
-        
+
+        float buttonHeight = App.ENTRY_SPACING;
+        int startIndex = Math.Max(Math.Abs((int)(entriesStartPosition.Y / buttonHeight)) - 1, 0);
+
+        entriesStartPosition.Y += startIndex * buttonHeight;
+
         if (!_pathPermissionDenied)
         {
-            foreach (Button button in _entryButtons)
+            for (int i = startIndex; i < _entryButtons.Length; i++)
             {
-                entriesStartPosition.Y += button.Render(renderer, entriesStartPosition, context);
+                entriesStartPosition.Y += _entryButtons[i].Render(renderer, entriesStartPosition, context);
 
                 if (entriesStartPosition.Y > App.WindowHeight)
                     break;
@@ -626,7 +644,7 @@ public class FileManagerScene : IScene
 
         _pathPermissionDenied = false;
 
-        if (newEntries == _systemEntries)
+        if (Enumerable.SequenceEqual(_systemEntries, newEntries))
         {
             return false;
         }
@@ -660,6 +678,8 @@ public class FileManagerScene : IScene
             
             _entryButtons[i] = new Button(App.WindowWidth, App.ENTRY_SPACING, 0, App.BackgroundColor, App.ForegroundColor, textElement);
         }
+
+        SelectEntry(_selectedEntry);
     }
 
     private float GetMinScroll(int numSysEntries)
