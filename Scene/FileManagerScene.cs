@@ -341,6 +341,7 @@ public class FileManagerScene : IScene
             {
                 Console.WriteLine("Couldn't rename file (No permission)");
             }
+            catch (IOException) { }
         }
         else if (Directory.Exists(entry))
         {
@@ -355,6 +356,7 @@ public class FileManagerScene : IScene
             {
                 Console.WriteLine("Couldn't rename directory (No permission)");
             }
+            catch (IOException) { }
         }
 
         RefreshSystemEntries();
