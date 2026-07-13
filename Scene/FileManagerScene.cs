@@ -104,6 +104,20 @@ public class FileManagerScene : IScene
             needsRedraw = true;
         }
 
+        if (InputHandler.IsLeftMousePressed())
+        {
+            int hoveredIndex = GetHoveredButton();
+
+            if (hoveredIndex == _selectedEntry)
+            {
+                OpenEntry(hoveredIndex);
+            }
+            else if (hoveredIndex < _entryButtons.Length)
+            {
+                SelectEntry(hoveredIndex);
+            }
+        }
+
         if (!_bookmarkHandler.Active || _bookmarkHandler.Closing)
         {
             if (_imageHandler.Update(deltaTime))
@@ -228,16 +242,29 @@ public class FileManagerScene : IScene
         Rectangle clipRect = new Rectangle(0, App.PATH_HEIGHT, App.WindowWidth, App.WindowHeight - App.PATH_HEIGHT);
         SDL.SetRenderClipRect(renderer.Handle, clipRect.ToSDLRect());
 
-        float buttonHeight = App.ENTRY_SPACING;
-        int startIndex = Math.Max(Math.Abs((int)(entriesStartPosition.Y / buttonHeight)) - 1, 0);
-
-        entriesStartPosition.Y += startIndex * buttonHeight;
 
         if (!_pathPermissionDenied)
         {
+            float buttonHeight = App.ENTRY_SPACING;
+            int startIndex = Math.Max(Math.Abs((int)(entriesStartPosition.Y / buttonHeight)) - 1, 0);
+
+            entriesStartPosition.Y += startIndex * buttonHeight;
+
+            int hoveredIndex = GetHoveredButton();
+
             for (int i = startIndex; i < _entryButtons.Length; i++)
             {
-                entriesStartPosition.Y += _entryButtons[i].Render(renderer, entriesStartPosition, context);
+                Button button = _entryButtons[i];
+
+                float height = button.Render(renderer, entriesStartPosition, context);
+
+                if (hoveredIndex == i)
+                {
+                    Rectangle rect = new(entriesStartPosition, button.Width, button.Height);
+                    renderer.RenderRectangle(rect, Color.White);
+                }
+
+                entriesStartPosition.Y += height;
 
                 if (entriesStartPosition.Y > App.WindowHeight)
                     break;
@@ -693,5 +720,13 @@ public class FileManagerScene : IScene
         {
             button.Width = App.WindowWidth;
         }
+    }
+
+    private int GetHoveredButton()
+    {
+        if (InputHandler.MouseY < App.PATH_HEIGHT)
+            return -1;
+
+        return (int)((InputHandler.MouseY - _preferredScroll - App.PATH_HEIGHT - App.PADDING) / App.ENTRY_SPACING);
     }
 }
