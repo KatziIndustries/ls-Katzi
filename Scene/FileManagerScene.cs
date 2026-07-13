@@ -175,8 +175,7 @@ public class FileManagerScene : IScene
     {
         Font font = AssetManager.Get<Font>(App.FONT_NAME);
 
-        Vector2 entriesStartPosition = new Vector2(App.PADDING) + new Vector2(0, _scroll + App.PATH_HEIGHT);
-        entriesStartPosition.X = 0;
+        Vector2 entriesStartPosition = new Vector2(0, App.PADDING) + new Vector2(0, _scroll + App.PATH_HEIGHT);
 
         UIContext context = new()
         {
@@ -192,6 +191,9 @@ public class FileManagerScene : IScene
             foreach (Button button in _entryButtons)
             {
                 entriesStartPosition.Y += button.Render(renderer, entriesStartPosition, context);
+
+                if (entriesStartPosition.Y > App.WindowHeight)
+                    break;
             }
         }
         else
