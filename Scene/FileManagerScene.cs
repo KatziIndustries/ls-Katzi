@@ -8,7 +8,7 @@ using System.Diagnostics;
 
 public class FileManagerScene : IScene
 {
-    public const float AUTO_REFRESH_TIME = 1;
+    public const float AUTO_REFRESH_INTERVAL = 1;
 
     public static string CurrentPath => _currentPath;
     public Color PathColor => _selectedEntry == -1 ? Color.FromArgb(50, 50, 50) : Color.FromArgb(28, 28, 28);
@@ -86,7 +86,7 @@ public class FileManagerScene : IScene
         if (!_renaming)
             _refreshTimer += (float)deltaTime;
 
-        if (_refreshTimer > AUTO_REFRESH_TIME)
+        if (_refreshTimer > AUTO_REFRESH_INTERVAL)
         {
             RefreshSystemEntries();
             _refreshTimer = 0;
