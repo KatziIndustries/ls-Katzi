@@ -183,7 +183,7 @@ public class FileManagerScene : IScene
             ResizeUI();
         }
 
-        if (InputHandler.IsKeyPressed(SDL.Keycode.Return) && _renaming)
+        if ((InputHandler.IsKeyPressed(SDL.Keycode.Return) || InputHandler.IsKeyPressed(SDL.Keycode.Escape)) && _renaming)
         {
             FinishRename();
         }
@@ -403,6 +403,8 @@ public class FileManagerScene : IScene
             }
             catch (IOException) { }
         }
+
+        _entryButtons[_selectedEntry] = new Button((InputField)_entryButtons[_selectedEntry]);
 
         RefreshSystemEntries();
         SelectEntry(_selectedEntry);
