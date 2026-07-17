@@ -55,7 +55,8 @@ public class FileManagerScene : IScene
         _keybindHandler.RegisterKeybind(SDL.Keycode.H, Action.ToggleShowHiddenFiles , true, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.D, Action.ToggleBookmarks , true, false);
         _keybindHandler.RegisterKeybind(SDL.Keycode.T, Action.OpenTerminal , true, false);
-        _keybindHandler.RegisterKeybind(SDL.Keycode.N, Action.Rename , true, false);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.G, Action.Rename , true, false);
+        _keybindHandler.RegisterKeybind(SDL.Keycode.R, Action.Remove , true, false);
 
         if (App.InitialDirectory != null)
         {
@@ -345,6 +346,10 @@ public class FileManagerScene : IScene
             case Action.Rename:
                 Rename();
                 break;
+
+            case Action.Remove:
+                Remove();
+                break;
         }
     }
 
@@ -409,6 +414,42 @@ public class FileManagerScene : IScene
         RefreshSystemEntries();
         SelectEntry(_selectedEntry);
         _renaming = false;
+    }
+
+    private void Remove()
+    {
+        string entry = _systemEntries[_selectedEntry];
+
+        if (File.Exists(entry))
+        {
+            try
+            {
+                File.Delete(entry);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                Console.WriteLine("Couldn't delete file (No permission)");
+            }
+        }
+        else if (Directory.Exists(entry))
+        {
+            try
+            {
+                Directory.Delete(entry);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                Console.WriteLine("Couldn't delete directory (No permission)");
+            }
+        }
+
+        RefreshSystemEntries();
+        SelectEntry(ClampToEntries(_selectedEntry));
+    }
+
+    private int ClampToEntries(int index)
+    {
+        return Math.Clamp(index, 0, Math.Max(_systemEntries.Length - 1, 0));
     }
 
     private void MoveUp()
