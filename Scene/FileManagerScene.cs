@@ -464,6 +464,9 @@ public class FileManagerScene : IScene
         ToggleButtonByIndex(index, true);
             
         _selectedEntry = index;
+        
+        if (index != -1)
+            CenterScroll();
     }
 
     private void ToggleButtonByIndex(int index, bool select)
@@ -629,6 +632,7 @@ public class FileManagerScene : IScene
         {
             _pathField.Text = _currentPath;
             RefreshSystemEntries();
+            CenterScroll(true);
         }
     }
 
@@ -679,8 +683,6 @@ public class FileManagerScene : IScene
         }
         else
         {
-            _scroll = 0;
-            _preferredScroll = 0;
             SetSystemEntries(newEntries);
             return true;
         }
